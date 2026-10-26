@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% from "_macros.html" import product_card, category_select, select, input, err, pager %}
+{% block title %}Search heavy vehicles & equipment — Infrasetu{% endblock %}
+{% block content %}
+{% set intent = args.get('intent', 'buy') %}
+<div class="wrap search-layout">
+  <aside class="filters">
+    <form method="get" action="{{ url_for('public.search') }}" id="search-form" data-validate
+          data-selected-manufacturer="{{ args.get('manufacturer', '') }}"
+          data-selected-model="{{ args.get('catalogue_id', '') }}"
+          data-attr-values='{{ args.to_dict()|tojson }}'>
+      <input type="hidden" name="submitted" value="1">
+      <h2>Find a machine</h2>
+      <p class="small muted">Fields marked <span class="req">*</span> are required.</p>
+
+      <fieldset class="req-block">
+        <div class="field{% if errors.get('intent') %} has-error{% endif %}">
+          <label>I want to <span class="req">*</span></label>
+          <div class="seg">
+            <label><input type="radio" name="intent" value="buy" {% if intent == 'buy' %}checked{% endif %} required><span>Buy</span></label>
+            <label><input type="radio" name="intent" value="rent" {% if intent == 'rent' %}checked{% endif %}><span>Rent</span></label>
+          </div>
+          {{ err('intent', errors) }}
+        </div>
+        {{ category_select('category', 'Category', categories, args, errors, required=True, attrs='data-meta-target') }}
+        {{ select('state', 'State', [('ALL', 'All India')] + INDIAN_STATES|map('string')|list, args, errors, required=True, placeholder='Select state…') }}
+      </fieldset>
+
+      <details class="refine" {% if submitted %}open{% endif %}>
+        <summary>Refine results</summary>
+        {{ input('city', 'City', args, errors, placeholder='e.g. Bengaluru') }}
+        <div class="field"><label for="f-manufacturer">Make</label>
+          <select id="f-manufacturer" name="manufacturer" data-manufacturer><option value="">Any make</option></select></div>
+        <div class="field"><label for="f-catalogue_id">Model</label>
+          <select id="f-catalogue_id" name="catalogue_id" data-model><option value="">Any model</option></select></div>
+        <div class="row-2">
+          {{ input('year_min', 'Year from', args, errors, type='number', attrs='min=1970') }}
+          {{ input('year_max', 'Year to', args, errors, type='number', attrs='min=1970') }}
+        </div>
+        <div class="row-2">
+          {{ input('budget_min', 'Min ₹', args, errors, type='number', attrs='min=0', help='Price, or rent per period') }}
+          {{ input('budget_max', 'Max ₹', args, errors, type='number', attrs='min=0') }}
+        </div>
+        <div data-rent-only {% if intent != 'rent' %}hidden{% endif %}>
+          {{ select('rent_period', 'Rental period', RENT_PERIODS, args, errors, placeholder='Any') }}
+          <label class="checkbox"><input type="checkbox" name="operator" value="1" {% if args.get('operator') == '1' %}checked{% endif %}> With operator only</label>
+        </div>
+        {{ input('usage_max', 'Max km / hours', args, errors, type='number', attrs='min=0') }}
+        {{ select('condition', 'Condition', CONDITIONS, args, errors, placeholder='Any') }}
+        {{ select('fuel_type', 'Fuel', FUEL_TYPES, args, errors, placeholder='Any') }}
+        {{ input('q', 'Keyword', args, errors, placeholder='e.g. tipper body, AC cabin') }}
+        <div data-attr-filters></div>
+      </details>
+      <button class="btn btn-primary btn-block">Search</button>
+      {% if submitted %}<a class="btn btn-ghost btn-block" href="{{ url_for('public.search') }}">Clear all</a>{% endif %}
+    </form>
+  </aside>
+
+  <section class="results">
+    {% if not submitted %}
+      <div class="empty-state">
+        <h1>Search {{ 'rentals' if intent == 'rent' else 'machines for sale' }}</h1>
+        <p>Choose whether you want to buy or rent, the category and the state to see matching listings. Then narrow down by make, model, year, budget and machine-specific specs.</p>
+      </div>
+    {% elif errors %}
+      <div class="empty-state">
+        <h1>A few details are missing</h1>
+        <p>Please complete the highlighted fields in the search form to see results.</p>
+      </div>
+    {% else %}
+      <div class="results-head">
+        <div>
+          <h1>{{ results.total }} {{ category.name }} {{ 'for rent' if intent == 'rent' else 'for sale' }}</h1>
+          <p class="muted">{{ 'All India' if args.get('state') == 'ALL' else args.get('state') }}{% if args.get('city') %} · {{ args.get('city') }}{% endif %}{% if args.get('manufacturer') %} · {{ args.get('manufacturer') }}{% endif %}</p>
+        </div>
+        <label class="sort">Sort
+          <select onchange="location.href=this.value">
+            {% for k, l in sorts.items() %}<option value="{{ url_with(sort=k, page=1) }}" {% if args.get('sort', 'newest') == k %}selected{% endif %}>{{ l }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+      {% if results.items %}
+        <div class="grid-cards">{% for p in results.items %}{{ product_card(p) }}{% endfor %}</div>
+        {{ pager(results, '') }}
+      {% else %}
+        <div class="empty-state">
+          <h2>No exact matches yet</h2>
+          <p>Try widening your filters, or tell us what you need and we'll match you with sellers and fleet owners.</p>
+          <a class="btn btn-primary" href="{{ url_for('public.requirement', intent=intent, category=args.get('category'), state=args.get('state') if args.get('state') != 'ALL' else '', city=args.get('city', ''), manufacturer=args.get('manufacturer', ''), budget_max=args.get('budget_max', '')) }}">Post your requirement</a>
+        </div>
+      {% endif %}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script>initSearchForm(document.getElementById('search-form'));</script>{% endblock %}

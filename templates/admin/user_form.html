@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import input, err %}
+{% block admin_title %}New user{% endblock %}
+{% block top_actions %}<a class="btn btn-ghost btn-sm" href="{{ url_for('admin.users') }}">← Users</a>{% endblock %}
+{% block admin_content %}
+{% if errors %}<div class="flash flash-danger">Please fix {{ errors|length }} field{{ 's' if errors|length != 1 }} highlighted below.</div>{% endif %}
+<form method="post" data-validate>
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <section class="panel">
+    <h2>Account details</h2>
+    {% set creating = True %}
+    {% include "admin/_user_fields.html" %}
+  </section>
+  <section class="panel">
+    <h2>Roles</h2>
+    <p class="small muted">Roles decide what the user can do. {% if not can('roles.manage') %}Staff roles can only be granted by someone with the "Manage roles" permission.{% endif %}</p>
+    {% set chosen = form.get('roles') or [] %}
+    <div class="role-pick{% if errors.get('roles') %} has-error{% endif %}">
+      {% for r in roles %}
+      <label class="role-option">
+        <input type="checkbox" name="roles" value="{{ r.id }}" {% if r.id|string in chosen %}checked{% endif %}>
+        <span><b>{{ r.name }}</b> <span class="badge {{ 'badge-staff' if r.is_staff else 'badge-role' }}">{{ 'Staff' if r.is_staff else 'Marketplace' }}</span><br>
+          <span class="small muted">{{ r.description or '' }}</span></span>
+      </label>
+      {% endfor %}
+    </div>
+    {{ err('roles', errors) }}
+  </section>
+  <section class="panel">
+    <h2>Password</h2>
+    <div class="row-2">
+      {{ input('password', 'Initial password', {}, errors, type='password', help='Leave blank to generate a temporary password, shown once after saving.', attrs='autocomplete="new-password"') }}
+    </div>
+  </section>
+  <div class="form-actions">
+    <a class="btn btn-ghost" href="{{ url_for('admin.users') }}">Cancel</a>
+    <button class="btn btn-primary">Create user</button>
+  </div>
+</form>
+{% endblock %}

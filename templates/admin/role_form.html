@@ -1,0 +1,79 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import input, err %}
+{% block admin_title %}{{ ('Edit role') if role.id else 'New role' }}{% endblock %}
+{% block heading %}{{ role.name if role.id else 'New role' }}{% endblock %}
+{% block top_actions %}<a class="btn btn-ghost btn-sm" href="{{ url_for('admin.roles') }}">← Roles</a>{% endblock %}
+{% block admin_content %}
+{% set chosen = form.get('permissions') or [] %}
+{% set staff = form.get('is_staff') == '1' %}
+<form method="post" data-validate data-role-form>
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <section class="panel">
+    <h2>Role</h2>
+    <div class="row-2">
+      {{ input('name', 'Role name', form, errors, required=True, placeholder='e.g. Regional Moderator — South') }}
+      {{ input('description', 'Description', form, errors, placeholder='What this role is for') }}
+    </div>
+    {% if role.is_system %}
+      <p class="small muted">Built-in {{ 'staff' if role.is_staff else 'marketplace' }} role — its type can't change and it can't be deleted.</p>
+      {% if role.is_staff %}<input type="hidden" name="is_staff" value="1">{% endif %}
+    {% else %}
+      <label class="checkbox"><input type="checkbox" name="is_staff" value="1" {% if staff %}checked{% endif %} data-staff-toggle> Staff role (opens the admin panel)</label>
+      <p class="small muted">Untick for a marketplace role, which may only hold marketplace permissions.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel{% if errors.get('permissions') %} has-error{% endif %}">
+    <h2>Permissions</h2>
+    {% if locked %}<div class="flash flash-info">Super Admin always has every permission. They can't be changed.</div>{% endif %}
+    {{ err('permissions', errors) }}
+    <div class="perm-grid">
+      {% for grp, perms in PERMISSION_GROUPS %}
+      <fieldset class="perm-group {{ 'is-market' if loop.first else 'is-staff' }}">
+        <legend>{{ grp }}</legend>
+        {% for code, label in perms %}
+        <label class="checkbox perm-row">
+          <input type="checkbox" name="permissions" value="{{ code }}" {% if locked or code in chosen %}checked{% endif %} {% if locked or code == 'admin.access' %}{{ 'disabled' if locked }}{% endif %}
+                 data-perm data-market="{{ '1' if code in marketplace else '0' }}">
+          <span>{{ label }}<br><code>{{ code }}</code>{% if code == 'admin.access' %} <span class="small muted">— always on for staff roles</span>{% endif %}</span>
+        </label>
+        {% endfor %}
+      </fieldset>
+      {% endfor %}
+    </div>
+  </section>
+  <div class="form-actions">
+    <a class="btn btn-ghost" href="{{ url_for('admin.roles') }}">Cancel</a>
+    <button class="btn btn-primary">Save role</button>
+  </div>
+</form>
+
+{% if role.id %}
+<div class="panel">
+  <h2>Users with this role <a href="{{ url_for('admin.users', role=role.id) }}">Filter users →</a></h2>
+  {% if members %}
+    <div class="chips">{% for m in members %}<a class="badge badge-role" href="{{ url_for('admin.user_detail', uid=m.id) }}">{{ m.name }}</a>{% endfor %}</div>
+  {% else %}<p class="muted">Nobody has this role yet.</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const form = document.querySelector('[data-role-form]');
+  const toggle = form.querySelector('[data-staff-toggle]');
+  function sync() {
+    if (!toggle) return;
+    const staff = toggle.checked;
+    form.querySelectorAll('[data-perm]').forEach(cb => {
+      const market = cb.dataset.market === '1';
+      const row = cb.closest('.perm-row');
+      if (!staff && !market) { cb.checked = false; cb.disabled = true; row.classList.add('is-locked'); }
+      else { cb.disabled = false; row.classList.remove('is-locked'); }
+      if (staff && cb.value === 'admin.access') cb.checked = true;
+    });
+  }
+  if (toggle) { toggle.addEventListener('change', sync); sync(); }
+})();
+</script>
+{% endblock %}

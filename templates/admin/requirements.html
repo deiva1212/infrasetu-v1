@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import pager %}
+{% block admin_title %}Requirements{% endblock %}
+{% block heading %}Buyer & renter requirements{% endblock %}
+{% block admin_content %}
+<nav class="tabs">
+  <a href="{{ url_with(status='', page='') }}" class="{{ 'active' if not request.args.get('status') }}">All</a>
+  {% for s in ENQUIRY_STATUSES %}<a href="{{ url_with(status=s, page='') }}" class="{{ 'active' if request.args.get('status') == s }}">{{ s|capitalize }}</a>{% endfor %}
+</nav>
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Date</th><th>Wants to</th><th>Category / make</th><th>Budget & qty</th><th>Location</th><th>Contact</th><th>Details</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for r in page.items %}
+    <tr>
+      <td class="small">{{ r.created_at|dt }}</td>
+      <td><span class="badge badge-{{ r.intent }}">{{ r.intent }}</span></td>
+      <td>{{ r.category.full_name }}<br><span class="small muted">{{ r.manufacturer or 'Any make' }}</span>
+        <br><a class="small" href="{{ url_for('admin.products', category=r.category_id, type='sell' if r.intent == 'buy' else 'rent', status='approved') }}">Find matches →</a></td>
+      <td class="small">Up to {{ r.budget_max|inr }}<br>Qty {{ r.quantity }} · by {{ r.needed_by|dt }}</td>
+      <td class="small">{{ r.city }}<br>{{ r.state }}</td>
+      <td class="small"><b>{{ r.name }}</b><br>{{ r.phone }}<br>{{ r.email }}</td>
+      <td class="small" style="max-width:260px">{{ r.details }}</td>
+      <td><form method="post" action="{{ url_for('admin.requirement_status', rid=r.id) }}" class="inline-form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <select name="status" onchange="this.form.submit()">{% for s in ENQUIRY_STATUSES %}<option value="{{ s }}" {% if r.status == s %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}</select></form></td>
+    </tr>
+  {% else %}<tr><td colspan="8" class="muted">No requirements posted.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{{ pager(page, '') }}
+{% endblock %}

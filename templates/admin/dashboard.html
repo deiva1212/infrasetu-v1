@@ -1,0 +1,78 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import status_badge %}
+{% block admin_title %}Dashboard{% endblock %}
+{% block admin_content %}
+<div class="stat-grid">
+  <a class="stat hl" href="{{ url_for('admin.products', status='pending') }}"><span>Awaiting approval</span><b>{{ stats.pending }}</b></a>
+  <a class="stat" href="{{ url_for('admin.products', status='approved', type='sell') }}"><span>Live — for sale</span><b>{{ stats.live_sell }}</b></a>
+  <a class="stat" href="{{ url_for('admin.products', status='approved', type='rent') }}"><span>Live — for rent</span><b>{{ stats.live_rent }}</b></a>
+  <a class="stat" href="{{ url_for('admin.products') }}"><span>All products</span><b>{{ stats.products }}</b></a>
+  <a class="stat hl" href="{{ url_for('admin.enquiries', status='new') }}"><span>New enquiries</span><b>{{ stats.new_enquiries }}</b></a>
+  <a class="stat" href="{{ url_for('admin.requirements', status='new') }}"><span>New requirements</span><b>{{ stats.new_requirements }}</b></a>
+  <a class="stat" href="{{ url_for('admin.categories') }}"><span>Categories</span><b>{{ stats.categories }}</b></a>
+  <a class="stat" href="{{ url_for('admin.catalogue') }}"><span>Catalogue models</span><b>{{ stats.catalogue }}</b></a>
+  <a class="stat" href="{{ url_for('admin.users') }}"><span>Users</span><b>{{ stats.users }}</b></a>
+  {% if can('users.verify') %}<a class="stat hl" href="{{ url_for('admin.users', kyc='pending') }}"><span>KYC to review</span><b>{{ stats.kyc_pending }}</b></a>{% endif %}
+</div>
+
+<div class="panel-grid">
+  <div class="panel">
+    <h2>Approval queue <a href="{{ url_for('admin.products', status='pending') }}">View all →</a></h2>
+    {% if pending %}
+    <table class="table">
+      <thead><tr><th>Listing</th><th>Type</th><th>Submitted</th><th></th></tr></thead>
+      <tbody>
+      {% for p in pending %}
+        <tr>
+          <td><a href="{{ url_for('admin.product_form', pid=p.id) if can('products.edit') else url_for('public.listing', ref=p.ref_code) }}"><b>{{ p.title }}</b></a><br><span class="small muted">{{ p.ref_code }} · {{ p.category.name }} · {{ p.user.name }}</span></td>
+          <td><span class="badge badge-{{ p.listing_type }}">{{ p.listing_type }}</span></td>
+          <td class="small">{{ p.created_at|dt('%d %b, %H:%M') }}</td>
+          <td>{% if can('products.moderate') %}
+            <form method="post" action="{{ url_for('admin.product_moderate', pid=p.id) }}" class="inline-form">
+              <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+              <button name="status" value="approved" class="btn btn-primary btn-xs">Approve</button>
+              <button name="status" value="rejected" class="btn btn-ghost btn-xs" onclick="const r=prompt('Reason for rejection (shown to seller):'); if(r===null) return false; this.form.admin_note.value=r;">Reject</button>
+              <input type="hidden" name="admin_note">
+            </form>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted">Nothing waiting for review. 🎉</p>{% endif %}
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Listings by status</h2>
+      {% set total = by_status.values()|sum or 1 %}
+      {% for s in PRODUCT_STATUSES %}
+        <div class="bar-row"><span>{{ status_badge(s) }}</span><div class="bar"><i style="width: {{ (by_status.get(s, 0) / total * 100)|round }}%"></i></div><b>{{ by_status.get(s, 0) }}</b></div>
+      {% endfor %}
+    </div>
+    <div class="panel">
+      <h2>Top categories</h2>
+      {% set mx = (by_cat|map(attribute=1)|max) if by_cat else 1 %}
+      {% for name, n in by_cat %}
+        <div class="bar-row"><span>{{ name }}</span><div class="bar"><i style="width: {{ (n / mx * 100)|round }}%"></i></div><b>{{ n }}</b></div>
+      {% else %}<p class="muted">No listings yet.</p>{% endfor %}
+    </div>
+  </div>
+</div>
+
+{% if can('leads.manage') %}<div class="panel">
+  <h2>Latest enquiries <a href="{{ url_for('admin.enquiries') }}">View all →</a></h2>
+  {% if enquiries %}
+  <table class="table">
+    <thead><tr><th>Date</th><th>Listing</th><th>From</th><th>Type</th><th>Status</th></tr></thead>
+    <tbody>{% for e in enquiries %}
+      <tr><td class="small">{{ e.created_at|dt('%d %b, %H:%M') }}</td>
+        <td><a href="{{ url_for('public.listing', ref=e.product.ref_code) }}">{{ e.product.ref_code }}</a> <span class="small muted">{{ e.product.title[:45] }}</span></td>
+        <td>{{ e.name }} · {{ e.phone }}</td><td><span class="badge badge-{{ e.enquiry_type }}">{{ e.enquiry_type }}</span></td>
+        <td>{{ status_badge(e.status) }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}<p class="muted">No enquiries yet.</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

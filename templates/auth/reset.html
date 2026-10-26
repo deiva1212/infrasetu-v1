@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_macros.html" import input %}
+{% block title %}Choose a new password — Infrasetu{% endblock %}
+{% block content %}
+<div class="wrap auth-wrap">
+  <form method="post" class="auth-card" data-validate>
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <h1>Choose a new password</h1>
+    <p class="muted">For {{ user.email }}</p>
+    {{ input('password', 'New password', {}, errors, type='password', required=True, attrs='minlength=8 autocomplete="new-password" autofocus', help='At least 8 characters with letters and numbers') }}
+    {{ input('confirm', 'Confirm new password', {}, errors, type='password', required=True, attrs='autocomplete="new-password"') }}
+    <button class="btn btn-primary btn-block">Set new password</button>
+  </form>
+</div>
+{% endblock %}

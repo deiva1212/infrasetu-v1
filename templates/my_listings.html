@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
+{% block title %}My listings — Infrasetu{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="page-head"><h1>My account</h1></div>
+  {% include "account/_nav.html" %}
+  <div class="row-between section-title">
+    <div><h2>My listings</h2><p class="muted">{{ items|length }} listing{{ 's' if items|length != 1 }}</p></div>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="{{ url_for('public.post_listing', type='sell') }}">+ Sell</a>
+      <a class="btn btn-ghost" href="{{ url_for('public.post_listing', type='rent') }}">+ Rent out</a>
+    </div>
+  </div>
+  {% if items %}
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Listing</th><th>Type</th><th>Price</th><th>Status</th><th>Views</th><th>Enquiries</th><th></th></tr></thead>
+    <tbody>
+    {% for p in items %}
+      <tr>
+        <td><a href="{{ url_for('public.listing', ref=p.ref_code) }}"><b>{{ p.title }}</b></a><br><span class="muted small">{{ p.ref_code }} · {{ p.category.name }} · {{ p.created_at|dt }}</span>
+          {% if p.status == 'rejected' and p.admin_note %}<br><span class="small text-danger">Reason: {{ p.admin_note }}</span>{% endif %}</td>
+        <td>{{ LISTING_TYPES[p.listing_type] }}</td>
+        <td>{% if p.listing_type == 'sell' %}{{ p.price|inr }}{% else %}{{ p.rent_rate|inr }}/{{ p.rent_period|lower }}{% endif %}</td>
+        <td>{{ status_badge(p.status) }}</td>
+        <td>{{ p.views }}</td>
+        <td>{{ p.enquiries.count() }}</td>
+        <td class="actions">
+          <a href="{{ url_for('public.edit_listing', pid=p.id) }}">Edit</a>
+          <form method="post" action="{{ url_for('public.listing_status', pid=p.id) }}" class="inline">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            {% if p.status in ('sold', 'rented', 'inactive') %}
+              <button name="status" value="relist" class="link-btn">Relist</button>
+            {% else %}
+              <button name="status" value="{{ 'sold' if p.listing_type == 'sell' else 'rented' }}" class="link-btn">Mark {{ 'sold' if p.listing_type == 'sell' else 'rented' }}</button>
+              <button name="status" value="inactive" class="link-btn">Pause</button>
+            {% endif %}
+          </form>
+          <form method="post" action="{{ url_for('public.delete_listing', pid=p.id) }}" class="inline" onsubmit="return confirm('Delete this listing permanently?')">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <button class="link-btn text-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="empty-state"><h2>No listings yet</h2><p>List a vehicle or machine to sell, or rent out your fleet.</p>
+    <a class="btn btn-primary" href="{{ url_for('public.post_listing') }}">Post your first listing</a></div>
+  {% endif %}
+</div>
+{% endblock %}

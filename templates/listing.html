@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% from "_macros.html" import product_card, input, textarea, err, check, status_badge, placeholder_img %}
+{% block title %}{{ p.title }} — Infrasetu{% endblock %}
+{% block content %}
+<div class="wrap">
+  <nav class="crumbs">
+    <a href="{{ url_for('public.home') }}">Home</a> ›
+    <a href="{{ url_for('public.search', intent='buy' if p.listing_type == 'sell' else 'rent', category=p.category_id) }}">{{ p.category.full_name }}</a> ›
+    <span>{{ p.ref_code }}</span>
+  </nav>
+
+  {% if p.status != 'approved' %}
+  <div class="flash flash-warning">This listing is {{ status_badge(p.status) }} and not visible to the public.{% if p.admin_note %} Note from admin: {{ p.admin_note }}{% endif %}</div>
+  {% endif %}
+
+  <div class="detail-layout">
+    <div class="detail-main">
+      <div class="gallery" data-gallery>
+        <div class="gallery-main">
+          {% if p.images %}<img src="{{ url_for('static', filename='uploads/' ~ p.images[0].filename) }}" alt="{{ p.title }}" data-gallery-main>
+          {% else %}{{ placeholder_img(p.category.group) }}{% endif %}
+          <span class="tag tag-{{ p.listing_type }}">{{ 'For Sale' if p.listing_type == 'sell' else 'For Rent' }}</span>
+        </div>
+        {% if p.images|length > 1 %}
+        <div class="thumbs">
+          {% for img in p.images %}<button type="button" data-src="{{ url_for('static', filename='uploads/' ~ img.filename) }}" {% if loop.first %}class="active"{% endif %}><img src="{{ url_for('static', filename='uploads/' ~ img.filename) }}" alt=""></button>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <h1 class="detail-title">{{ p.title }}</h1>
+      <p class="muted">{{ p.catalogue.display_name }} · {{ p.city }}, {{ p.state }} · Ref {{ p.ref_code }} · {{ p.views }} views</p>
+
+      <div class="keyfacts">
+        <div><span>Year</span><b>{{ p.manufacture_year }}</b></div>
+        <div><span>{{ 'Kilometres' if p.category.usage_unit == 'km' else 'Engine hours' }}</span><b>{{ "{:,}".format(p.usage_reading) }}</b></div>
+        <div><span>Condition</span><b>{{ p.condition }}</b></div>
+        <div><span>Fuel</span><b>{{ p.fuel_type }}</b></div>
+        {% if p.ownership %}<div><span>Ownership</span><b>{{ p.ownership }}</b></div>{% endif %}
+      </div>
+
+      <h2>Description</h2>
+      <div class="prose">{{ p.description|e|replace('\n', '<br>'|safe) }}</div>
+
+      <h2>Specifications</h2>
+      <table class="spec-table">
+        <tr><th>Category</th><td>{{ p.category.full_name }}</td></tr>
+        <tr><th>Make</th><td>{{ p.catalogue.manufacturer }}</td></tr>
+        <tr><th>Model</th><td>{{ p.catalogue.model_name }} {{ p.catalogue.variant }}</td></tr>
+        {% if p.catalogue.engine_power_hp %}<tr><th>Engine power</th><td>{{ p.catalogue.engine_power_hp }} HP</td></tr>{% endif %}
+        {% if p.catalogue.gvw_kg %}<tr><th>Gross vehicle weight</th><td>{{ "{:,}".format(p.catalogue.gvw_kg) }} kg</td></tr>{% endif %}
+        {% if p.catalogue.operating_weight_kg %}<tr><th>Operating weight</th><td>{{ "{:,}".format(p.catalogue.operating_weight_kg) }} kg</td></tr>{% endif %}
+        {% for label, value in attr_rows %}<tr><th>{{ label }}</th><td>{{ value }}</td></tr>{% endfor %}
+        {% for k, v in p.catalogue.spec_pairs %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endfor %}
+        {% if p.registration_no %}<tr><th>Registration</th><td>{{ p.registration_no[:4] }}••••••</td></tr>{% endif %}
+        {% if p.insurance_valid_till %}<tr><th>Insurance valid till</th><td>{{ p.insurance_valid_till|dt }}</td></tr>{% endif %}
+      </table>
+    </div>
+
+    <aside class="detail-side">
+      <div class="price-box">
+        {% if p.listing_type == 'sell' %}
+          <div class="muted small">Expected price</div>
+          <div class="big-price">{{ p.price|inr }}</div>
+          <div class="small">{{ 'Negotiable' if p.price_negotiable else 'Fixed price' }}</div>
+        {% else %}
+          <div class="muted small">Rental rate</div>
+          <div class="big-price">{{ p.rent_rate|inr }}<small> / {{ p.rent_period|lower }}</small></div>
+          <ul class="rent-terms">
+            <li>Minimum {{ p.min_rent_duration }} {{ p.rent_period|lower }}{{ 's' if p.min_rent_duration != 1 }}</li>
+            <li>Operator {{ 'included' if p.operator_included else 'not included' }}</li>
+            <li>Fuel {{ 'included' if p.fuel_included else 'not included' }}</li>
+            <li>Available from {{ p.available_from|dt }}</li>
+          </ul>
+        {% endif %}
+        <div class="seller">
+          <b>{{ p.contact_name }}</b>{% if p.user.company %} · {{ p.user.company }}{% endif %}
+          {% if p.user.is_verified %}<span class="badge badge-kyc-verified" title="KYC verified by Infrasetu">✓ Verified {{ 'partner' if p.user.account_type == 'partner' else 'seller' }}</span>{% endif %}<br>
+          <span class="muted small">{{ p.city }}, {{ p.pincode }} · Listed {{ p.created_at|dt }}</span>
+        </div>
+      </div>
+
+      {% if p.status == 'approved' and not (g.user and g.user.id == p.user_id) and config.REQUIRE_LOGIN_TO_ENQUIRE and not g.user %}
+      <div class="enquiry-box">
+        <h3>Interested in this {{ 'machine' if p.category.group == 'Heavy Equipment' else 'vehicle' }}?</h3>
+        <p class="muted">Log in or create a free buyer account to {{ 'make an offer' if p.listing_type == 'sell' else 'request it for your project' }}. Sellers only see your details when you contact them.</p>
+        <a class="btn btn-primary btn-block" href="{{ url_for('auth.login', next=request.path) }}">Log in to contact seller</a>
+        <a class="btn btn-ghost btn-block" href="{{ url_for('auth.register', type='buyer', next=request.path) }}">Register as buyer</a>
+      </div>
+      {% elif p.status == 'approved' and not (g.user and g.user.id == p.user_id) %}
+      <form class="enquiry-box" method="post" action="{{ url_for('public.enquire', ref=p.ref_code) }}" data-validate id="enquiry">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <h3>{{ 'Make an offer / enquire' if p.listing_type == 'sell' else 'Request this machine' }}</h3>
+        {% set fdef = form if form else ({'name': g.user.name, 'phone': g.user.phone, 'email': g.user.email} if g.user else {}) %}
+        {{ input('name', 'Your name', fdef, errors, required=True) }}
+        <div class="row-2">
+          {{ input('phone', 'Mobile', fdef, errors, type='tel', required=True, attrs='pattern="[0-9+ ]{10,14}"') }}
+          {{ input('city', 'Your city', fdef, errors, required=True) }}
+        </div>
+        {{ input('email', 'Email', fdef, errors, type='email', required=True) }}
+        {% if p.listing_type == 'sell' %}
+          {{ input('offer_price', 'Your offer (₹)', fdef, errors, type='number', attrs='min=1') }}
+        {% else %}
+          <div class="row-2">
+            {{ input('rent_from', 'From', fdef, errors, type='date', required=True) }}
+            {{ input('rent_to', 'To', fdef, errors, type='date', required=True) }}
+          </div>
+          {{ input('work_site', 'Work site location', fdef, errors, required=True, placeholder='Site address / town') }}
+        {% endif %}
+        {{ textarea('message', 'Message', fdef, errors, required=True, rows=3, placeholder='Tell the seller about your requirement…') }}
+        {{ check('agree', 'Share my contact details with the seller', fdef, errors) }}
+        <button class="btn btn-primary btn-block">Send enquiry</button>
+      </form>
+      {% elif g.user and g.user.id == p.user_id %}
+        <a class="btn btn-ghost btn-block" href="{{ url_for('public.edit_listing', pid=p.id) }}">Edit this listing</a>
+      {% endif %}
+    </aside>
+  </div>
+
+  {% if similar %}
+  <section class="section">
+    <div class="section-head"><h2>Similar listings</h2></div>
+    <div class="grid-cards">{% for s in similar %}{{ product_card(s) }}{% endfor %}</div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

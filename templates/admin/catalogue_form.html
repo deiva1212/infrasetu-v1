@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import input, textarea, select, check %}
+{% block admin_title %}{{ 'Edit model' if item.id else 'New model' }}{% endblock %}
+{% block heading %}{{ item.display_name if item.id else 'New catalogue model' }}{% endblock %}
+{% block top_actions %}<a class="btn btn-ghost btn-sm" href="{{ url_for('admin.catalogue') }}">← Catalogue</a>{% endblock %}
+{% block admin_content %}
+{% set v = form if form else {
+  'category_id': item.category_id or request.args.get('category', ''), 'manufacturer': item.manufacturer or '',
+  'model_name': item.model_name or '', 'variant': item.variant or '', 'engine_power_hp': item.engine_power_hp or '',
+  'operating_weight_kg': item.operating_weight_kg or '', 'gvw_kg': item.gvw_kg or '',
+  'specifications': item.specifications or '', 'description': item.description or '',
+  'is_active': '1' if item.is_active else ''} %}
+<form method="post" class="panel" data-validate>
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <div class="row-2">
+    <div class="field{% if errors.get('category_id') %} has-error{% endif %}">
+      <label for="f-category_id">Category <span class="req">*</span></label>
+      <select id="f-category_id" name="category_id" required>
+        <option value="">Select…</option>
+        {% for grp in CATEGORY_GROUPS %}<optgroup label="{{ GROUP_LABELS[grp] }}">
+          {% for c in cats if c.group == grp %}<option value="{{ c.id }}" {% if v.get('category_id')|string == c.id|string %}selected{% endif %}>{{ c.full_name }}</option>{% endfor %}
+        </optgroup>{% endfor %}
+      </select>
+      {% if errors.get('category_id') %}<div class="field-error">{{ errors.category_id }}</div>{% endif %}
+    </div>
+    {{ input('manufacturer', 'Manufacturer', v, errors, required=True, attrs='list="mfr-list"') }}
+    <datalist id="mfr-list">{% for m in manufacturers %}<option value="{{ m }}">{% endfor %}</datalist>
+  </div>
+  <div class="row-2">
+    {{ input('model_name', 'Model', v, errors, required=True, placeholder='e.g. Signa 2823.K') }}
+    {{ input('variant', 'Variant', v, errors, placeholder='e.g. 16 cum box body') }}
+  </div>
+  <div class="row-3">
+    {{ input('engine_power_hp', 'Engine power (HP)', v, errors, type='number') }}
+    {{ input('gvw_kg', 'Gross vehicle weight (kg)', v, errors, type='number', help='For vehicles') }}
+    {{ input('operating_weight_kg', 'Operating weight (kg)', v, errors, type='number', help='For equipment') }}
+  </div>
+  {{ textarea('specifications', 'Standard specifications', v, errors, rows=5, placeholder='Engine: Cummins ISBe 6.7\nTransmission: 9 speed manual\nWheelbase: 4,850 mm', help='One "Key: Value" per line — shown on every listing of this model.') }}
+  {{ textarea('description', 'Description', v, errors, rows=3) }}
+  {{ check('is_active', 'Active (sellers can choose this model)', v, errors) }}
+  <div class="form-actions" style="padding-bottom:0">
+    <a class="btn btn-ghost" href="{{ url_for('admin.catalogue') }}">Cancel</a>
+    <button class="btn btn-primary">Save model</button>
+  </div>
+</form>
+{% endblock %}

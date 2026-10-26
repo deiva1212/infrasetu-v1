@@ -1,0 +1,22 @@
+{% from "_macros.html" import input, select %}
+{# Shared admin user fields. Expects: form, errors, creating (bool) #}
+<div class="row-3">
+  {{ input('name', 'Full name', form, errors, required=True) }}
+  {% if creating %}{{ input('email', 'Email', form, errors, type='email', required=True) }}
+  {% else %}<div class="field"><label>Email</label><input type="email" value="{{ u.email }}" disabled></div>{% endif %}
+  {{ input('phone', 'Mobile number', form, errors, type='tel', required=True) }}
+</div>
+<div class="row-3">
+  {{ select('account_type', 'Account type', ACCOUNT_TYPES.items()|list, form, errors, required=True, placeholder='') }}
+  {{ select('business_type', 'Buyer / seller type', (BUYER_TYPES + SELLER_TYPES)|unique|list, form, errors, placeholder='—', help='For buyer and seller accounts') }}
+  {{ select('partner_type', 'Partner type', PARTNER_TYPES, form, errors, placeholder='—', help='For partner accounts') }}
+</div>
+<div class="row-3">
+  {{ input('company', 'Company', form, errors, help='Required for partners') }}
+  {{ select('state', 'State', INDIAN_STATES, form, errors) }}
+  {{ input('city', 'City', form, errors) }}
+</div>
+<div class="row-2">
+  {{ input('gstin', 'GSTIN', form, errors, attrs='maxlength=15 style="text-transform:uppercase"', help='Required for partners') }}
+  {{ input('pan', 'PAN', form, errors, attrs='maxlength=10 style="text-transform:uppercase"') }}
+</div>

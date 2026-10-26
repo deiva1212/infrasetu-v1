@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import pager %}
+{% block admin_title %}Audit log{% endblock %}
+{% block admin_content %}
+<p class="muted">Every admin change to users, roles, KYC and listings, plus security events such as lockouts and password resets.</p>
+<form class="toolbar" method="get">
+  <div class="field"><label>Area</label><select name="action"><option value="">All</option>
+    {% for grp in groups %}<option value="{{ grp }}." {% if request.args.get('action') == grp ~ '.' %}selected{% endif %}>{{ grp }}</option>{% endfor %}</select></div>
+  <div class="field"><label>Done by</label><input name="actor" value="{{ request.args.get('actor', '') }}" placeholder="Name or email"></div>
+  <button class="btn btn-dark btn-sm">Filter</button>
+</form>
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>When (UTC)</th><th>Action</th><th>By</th><th>Target</th><th>Details</th><th>IP</th></tr></thead>
+  <tbody>
+  {% for h in page.items %}
+    <tr>
+      <td class="small">{{ h.created_at|dt('%d %b %Y, %H:%M:%S') }}</td>
+      <td><code>{{ h.action }}</code></td>
+      <td class="small">{% if h.actor %}{% if can('users.view') %}<a href="{{ url_for('admin.user_detail', uid=h.actor.id) }}">{{ h.actor.name }}</a>{% else %}{{ h.actor.name }}{% endif %}{% else %}<span class="muted">system</span>{% endif %}</td>
+      <td class="small">{% if h.target_type == 'user' and h.target_id and can('users.view') %}<a href="{{ url_for('admin.user_detail', uid=h.target_id) }}">user #{{ h.target_id }}</a>
+        {% elif h.target_type == 'product' and h.target_id and can('products.edit') %}<a href="{{ url_for('admin.product_form', pid=h.target_id) }}">product #{{ h.target_id }}</a>
+        {% elif h.target_type == 'role' and h.target_id and can('roles.manage') %}<a href="{{ url_for('admin.role_form', rid=h.target_id) }}">role #{{ h.target_id }}</a>
+        {% elif h.target_type %}{{ h.target_type }} #{{ h.target_id }}{% else %}—{% endif %}</td>
+      <td class="small" style="max-width:340px">{{ h.details or '' }}</td>
+      <td class="small muted">{{ h.ip or '' }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="muted">No entries.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ pager(page, '') }}
+{% endblock %}

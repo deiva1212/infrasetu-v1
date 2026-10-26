@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Create an account — Infrasetu{% endblock %}
+{% block content %}
+<div class="wrap narrow">
+  <div class="page-head center">
+    <h1>Join Infrasetu</h1>
+    <p class="muted">Choose the account that fits you. You can upgrade from buyer to seller at any time.</p>
+  </div>
+  <div class="type-grid">
+    {% for key, (label, blurb) in types.items() %}
+    <a class="type-card type-{{ key }}" href="{{ url_for('auth.register', type=key, next=request.args.get('next')) }}">
+      <span class="type-icon" aria-hidden="true">{{ {'buyer': '⌕', 'seller': '₹', 'partner': '⚙'}[key] }}</span>
+      <h2>{{ label }}</h2>
+      <p>{{ blurb }}</p>
+      <ul>
+        {% if key == 'buyer' %}<li>Search and compare listings</li><li>Contact sellers and fleet owners</li><li>Post "wanted" requirements</li>
+        {% elif key == 'seller' %}<li>Everything a buyer can do</li><li>List machines for sale or rent</li><li>Manage enquiries from buyers</li>
+        {% else %}<li>Listed in the partner directory</li><li>Post listings (dealers)</li><li>GSTIN verification required</li>{% endif %}
+      </ul>
+      <span class="btn btn-primary btn-block">Register as {{ label|lower }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  <p class="center muted">Already have an account? <a href="{{ url_for('auth.login', next=request.args.get('next')) }}">Log in</a></p>
+</div>
+{% endblock %}

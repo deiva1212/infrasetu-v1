@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Partner directory — Infrasetu{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="page-head row-between">
+    <div>
+      <h1>Partner directory</h1>
+      <p class="muted">Verified financiers, insurers, inspectors, transporters, dealers and service partners for heavy machinery.</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('auth.register', type='partner') }}">Become a partner</a>
+  </div>
+  <form class="toolbar" method="get">
+    <div class="field"><label for="p-type">Partner type</label><select id="p-type" name="type"><option value="">All types</option>
+      {% for t in PARTNER_TYPES %}<option {% if ptype == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="p-state">Serves state</label><select id="p-state" name="state"><option value="">Anywhere</option>
+      {% for s in INDIAN_STATES %}<option {% if state == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <button class="btn btn-dark btn-sm">Filter</button>
+  </form>
+  {% if items %}
+  <div class="partner-grid">
+    {% for u in items %}{% set pp = u.partner_profile %}
+    <article class="card partner-card">
+      <div class="card-cat">{{ pp.partner_type }}</div>
+      <h3>{{ u.company }} <span class="badge badge-kyc-verified" title="GSTIN verified">✓ Verified</span></h3>
+      <p class="small muted">Serves {{ pp.service_states }}</p>
+      <p>{{ pp.description }}</p>
+      <div class="partner-contact">
+        {% if g.user %}
+          <span>{{ u.name }}</span> · <a href="tel:{{ u.phone }}">{{ u.phone }}</a> · <a href="mailto:{{ u.email }}">{{ u.email }}</a>
+          {% if pp.website %} · <a href="{{ pp.website }}" target="_blank" rel="noopener nofollow">Website ↗</a>{% endif %}
+        {% else %}
+          <a href="{{ url_for('auth.login', next=request.full_path) }}">Log in</a> to see contact details
+        {% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state"><h2>No verified partners match</h2><p>Try another type or state.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

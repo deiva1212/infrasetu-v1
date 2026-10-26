@@ -1,0 +1,34 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import pager, status_badge %}
+{% block admin_title %}Enquiries{% endblock %}
+{% block admin_content %}
+<nav class="tabs">
+  <a href="{{ url_with(status='', page='') }}" class="{{ 'active' if not request.args.get('status') }}">All</a>
+  {% for s in ENQUIRY_STATUSES %}<a href="{{ url_with(status=s, page='') }}" class="{{ 'active' if request.args.get('status') == s }}">{{ s|capitalize }}</a>{% endfor %}
+  <a href="{{ url_with(type='buy' if request.args.get('type') != 'buy' else '', page='') }}" class="{{ 'active' if request.args.get('type') == 'buy' }}" style="margin-left:auto">Buy</a>
+  <a href="{{ url_with(type='rent' if request.args.get('type') != 'rent' else '', page='') }}" class="{{ 'active' if request.args.get('type') == 'rent' }}">Rent</a>
+</nav>
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Date</th><th>Listing</th><th>Enquirer</th><th>Type / details</th><th>Message</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for e in page.items %}
+    <tr>
+      <td class="small">{{ e.created_at|dt('%d %b %Y, %H:%M') }}</td>
+      <td><a href="{{ url_for('admin.product_form', pid=e.product_id) }}">{{ e.product.ref_code }}</a><br><span class="small muted">{{ e.product.title[:40] }}</span><br><span class="small">Seller: {{ e.product.contact_name }} · {{ e.product.contact_phone }}</span></td>
+      <td><b>{{ e.name }}</b><br><span class="small">{{ e.phone }}<br>{{ e.email }}<br>{{ e.city }}</span></td>
+      <td><span class="badge badge-{{ e.enquiry_type }}">{{ e.enquiry_type }}</span><br><span class="small">{% if e.enquiry_type == 'buy' %}Offer: {{ e.offer_price|inr }}{% else %}{{ e.rent_from|dt }} → {{ e.rent_to|dt }}<br>{{ e.work_site }}{% endif %}</span></td>
+      <td class="small" style="max-width:280px">{{ e.message }}</td>
+      <td>
+        <form method="post" action="{{ url_for('admin.enquiry_status', eid=e.id) }}" class="inline-form">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <select name="status" onchange="this.form.submit()">{% for s in ENQUIRY_STATUSES %}<option value="{{ s }}" {% if e.status == s %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}</select>
+        </form>
+      </td>
+    </tr>
+  {% else %}<tr><td colspan="6" class="muted">No enquiries.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{{ pager(page, '') }}
+{% endblock %}

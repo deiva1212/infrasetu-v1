@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block body_class %}admin{% endblock %}
+{% block title %}{% block admin_title %}Admin{% endblock %} — Infrasetu Admin{% endblock %}
+{% block header %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block flashes %}{% endblock %}
+{% block content %}
+{% set ep = request.endpoint or '' %}
+<div class="admin-shell">
+  <aside class="admin-side">
+    <a class="brand" href="{{ url_for('admin.dashboard') }}"><span class="brand-mark">IS</span> <span>Infra<b>setu</b></span> <small>ADMIN</small></a>
+    <nav class="admin-nav">
+      {% if can('dashboard.view') %}<a href="{{ url_for('admin.dashboard') }}" class="{{ 'active' if ep == 'admin.dashboard' }}">Dashboard</a>{% endif %}
+      {% if can('catalogue.manage') or can('products.view') %}<h5>Catalogue</h5>{% endif %}
+      {% if can('catalogue.manage') %}
+      <a href="{{ url_for('admin.categories') }}" class="{{ 'active' if 'category' in ep or 'categories' in ep or 'attribute' in ep }}">Categories</a>
+      <a href="{{ url_for('admin.catalogue') }}" class="{{ 'active' if 'catalogue' in ep }}">Catalogue (Make/Model)</a>
+      {% endif %}
+      {% if can('products.view') %}<a href="{{ url_for('admin.products') }}" class="{{ 'active' if 'product' in ep }}">Products / Listings</a>{% endif %}
+      {% if can('leads.manage') %}
+      <h5>Leads</h5>
+      <a href="{{ url_for('admin.enquiries') }}" class="{{ 'active' if 'enquir' in ep }}">Enquiries</a>
+      <a href="{{ url_for('admin.requirements') }}" class="{{ 'active' if 'requirement' in ep }}">Requirements</a>
+      {% endif %}
+      {% if can('users.view') or can('roles.manage') or can('audit.view') %}<h5>Users &amp; access</h5>{% endif %}
+      {% if can('users.view') %}<a href="{{ url_for('admin.users') }}" class="{{ 'active' if 'user' in ep }}">Users{% if admin_kyc_pending %} <span class="count" title="KYC waiting">{{ admin_kyc_pending }}</span>{% endif %}</a>{% endif %}
+      {% if can('roles.manage') %}<a href="{{ url_for('admin.roles') }}" class="{{ 'active' if 'role' in ep }}">Roles &amp; permissions</a>{% endif %}
+      {% if can('audit.view') %}<a href="{{ url_for('admin.audit') }}" class="{{ 'active' if ep == 'admin.audit' }}">Audit log</a>{% endif %}
+      <h5>You</h5>
+      <a href="{{ url_for('auth.account') }}">My account</a>
+      <a href="{{ url_for('public.home') }}" target="_blank">View site ↗</a>
+    </nav>
+  </aside>
+  <div class="admin-main">
+    <div class="admin-top">
+      <h1>{% block heading %}{{ self.admin_title() }}{% endblock %}</h1>
+      <div class="who">
+        {% block top_actions %}{% endblock %}
+        <span title="{{ g.user.roles|map(attribute='name')|join(', ') }}">{{ g.user.name }} · <span class="muted">{{ g.user.roles|selectattr('is_staff')|map(attribute='name')|join(', ') }}</span></span>
+        <form method="post" action="{{ url_for('auth.logout') }}" class="inline"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link-btn">Log out</button></form>
+      </div>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}<button onclick="this.parentElement.remove()" aria-label="Dismiss">×</button></div>{% endfor %}
+    {% endwith %}
+    {% block admin_content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

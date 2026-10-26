@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_macros.html" import input %}
+{% block title %}Log in — Infrasetu{% endblock %}
+{% block content %}
+<div class="wrap auth-wrap">
+  <form method="post" class="auth-card" data-validate action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <h1>Log in</h1>
+    <p class="muted">Buyers, sellers, partners and staff all sign in here.</p>
+    {{ input('identifier', 'Email or mobile number', form, errors, required=True, attrs='autocomplete="username" autofocus') }}
+    {{ input('password', 'Password', {}, errors, type='password', required=True, attrs='autocomplete="current-password"') }}
+    <div class="row-between small">
+      <label class="checkbox"><input type="checkbox" name="remember" value="1"> Keep me signed in for 30 days</label>
+      <a href="{{ url_for('auth.forgot_password') }}">Forgot password?</a>
+    </div>
+    <button class="btn btn-primary btn-block">Log in</button>
+    <div class="auth-divider"><span>New to Infrasetu?</span></div>
+    <div class="btn-row equal">
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('auth.register', type='buyer', next=request.args.get('next')) }}">Buyer</a>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('auth.register', type='seller', next=request.args.get('next')) }}">Seller</a>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('auth.register', type='partner', next=request.args.get('next')) }}">Partner</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

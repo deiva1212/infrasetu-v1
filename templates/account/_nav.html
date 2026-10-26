@@ -1,0 +1,9 @@
+{% set ep = request.endpoint or '' %}
+<nav class="tabs account-tabs">
+  <a href="{{ url_for('auth.account') }}" class="{{ 'active' if ep == 'auth.account' }}">Overview</a>
+  {% if g.user.has_permission('listing.create') %}<a href="{{ url_for('public.my_listings') }}" class="{{ 'active' if ep == 'public.my_listings' }}">My listings</a>{% endif %}
+  <a href="{{ url_for('public.my_enquiries') }}" class="{{ 'active' if ep == 'public.my_enquiries' }}">Enquiries</a>
+  <a href="{{ url_for('auth.profile') }}" class="{{ 'active' if ep == 'auth.profile' }}">Profile{% if g.user.account_type in ('seller', 'partner') %} &amp; KYC{% endif %}</a>
+  <a href="{{ url_for('auth.change_password') }}" class="{{ 'active' if ep == 'auth.change_password' }}">Password</a>
+  {% if g.user.is_admin %}<a href="{{ url_for('admin.dashboard') }}">Admin panel ↗</a>{% endif %}
+</nav>

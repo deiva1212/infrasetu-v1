@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}My account — Infrasetu{% endblock %}
+{% block content %}
+{% set u = g.user %}
+<div class="wrap">
+  <div class="account-head">
+    <span class="avatar avatar-lg" aria-hidden="true">{{ u.name[:1]|upper }}</span>
+    <div>
+      <h1>{{ u.name }}</h1>
+      <p class="muted">{{ u.company ~ ' · ' if u.company }}{{ u.email }} · {{ u.phone }}</p>
+      <div class="chips">
+        <span class="badge badge-type-{{ u.account_type }}">{{ u.account_label }}{% if u.partner_profile %} · {{ u.partner_profile.partner_type }}{% elif u.business_type %} · {{ u.business_type }}{% endif %}</span>
+        {% for r in u.roles %}<span class="badge badge-role">{{ r.name }}</span>{% endfor %}
+        {% if u.verification_status != 'not_submitted' %}<span class="badge badge-kyc-{{ u.verification_status }}">KYC: {{ VERIFICATION_STATUSES[u.verification_status] }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% include "account/_nav.html" %}
+
+  {% if u.account_type == 'partner' and not u.is_verified %}
+  <div class="callout callout-{{ 'danger' if u.verification_status == 'rejected' else 'warning' }}">
+    <h3>{{ 'Verification rejected' if u.verification_status == 'rejected' else 'Your partner account is under verification' }}</h3>
+    <p>{% if u.verification_status == 'rejected' %}Reason: {{ u.verification_note or 'not given' }}. Update your details on the <a href="{{ url_for('auth.profile') }}">profile page</a> to resubmit.
+       {% else %}Our team is checking your GSTIN ({{ u.gstin }}). Once verified you will appear in the <a href="{{ url_for('public.partners') }}">partner directory</a> and can post listings.{% endif %}</p>
+  </div>
+  {% endif %}
+
+  <div class="stat-grid">
+    {% if u.has_permission('listing.create') %}
+      <a class="stat hl" href="{{ url_for('public.my_listings') }}"><span>My listings</span><b>{{ total_listings }}</b><small>{{ listings.get('approved', 0) }} live · {{ listings.get('pending', 0) }} pending</small></a>
+      <a class="stat" href="{{ url_for('public.my_enquiries') }}"><span>Enquiries received</span><b>{{ received }}</b><small>{{ new_received }} new</small></a>
+    {% endif %}
+    <a class="stat" href="{{ url_for('public.my_enquiries') }}"><span>Enquiries sent</span><b>{{ sent }}</b><small>to sellers</small></a>
+    <a class="stat" href="{{ url_for('auth.profile') }}"><span>Last login</span><b class="b-sm">{{ u.last_login_at|dt('%d %b, %H:%M') }}</b><small>UTC</small></a>
+  </div>
+
+  <div class="card-grid">
+    {% if u.can_post_listings %}
+      <div class="panel"><h3>Sell or rent out</h3><p class="muted">List a vehicle or machine. It goes live after a quick review.</p>
+        <div class="btn-row"><a class="btn btn-primary" href="{{ url_for('public.post_listing', type='sell') }}">+ Sell</a><a class="btn btn-ghost" href="{{ url_for('public.post_listing', type='rent') }}">+ Rent out</a></div></div>
+    {% elif u.account_type == 'buyer' %}
+      <div class="panel"><h3>Want to sell or rent out?</h3><p class="muted">Upgrade to a seller account in one click. You keep everything you have as a buyer.</p>
+        <form method="post" action="{{ url_for('auth.become_seller') }}"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-primary">Become a seller</button></form></div>
+    {% endif %}
+    <div class="panel"><h3>Find a machine</h3><p class="muted">Search {{ 'and contact ' if u.has_permission('enquiry.create') }}sellers across India.</p>
+      <div class="btn-row"><a class="btn btn-ghost" href="{{ url_for('public.search', intent='buy') }}">Buy</a><a class="btn btn-ghost" href="{{ url_for('public.search', intent='rent') }}">Rent</a><a class="btn btn-ghost" href="{{ url_for('public.requirement') }}">Post requirement</a></div></div>
+    {% if u.account_type == 'partner' and u.partner_profile %}
+      <div class="panel"><h3>Your directory listing</h3>
+        <p><b>{{ u.company }}</b> · {{ u.partner_profile.partner_type }}</p>
+        <p class="small muted">Serves: {{ u.partner_profile.service_states }}</p>
+        <p class="small">{{ u.partner_profile.description }}</p>
+        {% if u.is_verified %}<a href="{{ url_for('public.partners', type=u.partner_profile.partner_type) }}">See it in the directory →</a>{% else %}<span class="muted small">Visible after verification.</span>{% endif %}</div>
+    {% elif u.account_type == 'seller' and u.verification_status in ('not_submitted', 'rejected') %}
+      <div class="panel"><h3>Get a verified seller badge</h3><p class="muted">Add your GSTIN or PAN on your profile. Verified sellers get more enquiries.</p>
+        <a class="btn btn-ghost" href="{{ url_for('auth.profile') }}">Add KYC details</a></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

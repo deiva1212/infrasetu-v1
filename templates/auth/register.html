@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import input, select, check, err %}
+{% block title %}Register as {{ label|lower }} — Infrasetu{% endblock %}
+{% block content %}
+<div class="wrap narrow">
+  <div class="page-head">
+    <a class="small" href="{{ url_for('auth.register', next=request.args.get('next')) }}">← Choose a different account type</a>
+    <h1>Register as {{ label|lower }}</h1>
+    <p class="muted">Fields marked <span class="req">*</span> are required.
+      {% if acct == 'partner' %}Partner accounts are verified by our team before they appear in the directory.{% endif %}</p>
+  </div>
+  {% if errors %}<div class="flash flash-danger">Please fix {{ errors|length }} field{{ 's' if errors|length != 1 }} highlighted below.</div>{% endif %}
+  <form method="post" action="{{ url_for('auth.register', type=acct, next=request.args.get('next')) }}" data-validate>
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <section class="form-section">
+      <h2><span>1</span> Your details</h2>
+      <div class="row-3">
+        {{ input('name', 'Full name', form, errors, required=True, attrs='autocomplete="name"') }}
+        {{ input('email', 'Email', form, errors, type='email', required=True, attrs='autocomplete="email"') }}
+        {{ input('phone', 'Mobile number', form, errors, type='tel', required=True, placeholder='10-digit mobile', attrs='autocomplete="tel" pattern="[0-9+ ]{10,14}"') }}
+      </div>
+      <div class="row-2">
+        {{ select('state', 'State', INDIAN_STATES, form, errors, required=True) }}
+        {{ input('city', 'City / town', form, errors, required=True) }}
+      </div>
+    </section>
+
+    <section class="form-section">
+      <h2><span>2</span> {{ {'buyer': 'Buying as', 'seller': 'Business details', 'partner': 'Company & services'}[acct] }}</h2>
+      {% include "account/_type_fields.html" %}
+    </section>
+
+    <section class="form-section">
+      <h2><span>3</span> Password</h2>
+      <div class="row-2">
+        {{ input('password', 'Password', {}, errors, type='password', required=True, attrs='minlength=8 autocomplete="new-password"', help='At least 8 characters with letters and numbers') }}
+        {{ input('confirm', 'Confirm password', {}, errors, type='password', required=True, attrs='autocomplete="new-password"') }}
+      </div>
+      {{ check('terms', 'I accept the terms of use and privacy policy, and agree that my contact details are shared with parties I contact.', form, errors) }}
+    </section>
+    <div class="form-actions">
+      <a class="btn btn-ghost" href="{{ url_for('auth.login') }}">I already have an account</a>
+      <button class="btn btn-primary">Create {{ label|lower }} account</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

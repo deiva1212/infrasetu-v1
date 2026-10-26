@@ -1,0 +1,145 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import status_badge %}
+{% block admin_title %}{{ u.name }}{% endblock %}
+{% block top_actions %}<a class="btn btn-ghost btn-sm" href="{{ url_for('admin.users') }}">← Users</a>{% endblock %}
+{% block admin_content %}
+{% set self_view = u.id == g.user.id %}
+{% set protected = u.is_super_admin and not g.user.is_super_admin %}
+<div class="panel user-summary">
+  <span class="avatar avatar-lg" aria-hidden="true">{{ u.name[:1]|upper }}</span>
+  <div class="grow">
+    <h2 style="margin:0">{{ u.name }}{% if self_view %} <span class="small muted">(you)</span>{% endif %}</h2>
+    <p class="muted" style="margin:2px 0 8px">{{ u.email }} · {{ u.phone }}{% if u.company %} · {{ u.company }}{% endif %}{% if u.city %} · {{ u.city }}, {{ u.state }}{% endif %}</p>
+    <div class="chips">
+      <span class="badge badge-type-{{ u.account_type }}">{{ u.account_label }}</span>
+      {% for r in u.roles %}<span class="badge {{ 'badge-staff' if r.is_staff else 'badge-role' }}">{{ r.name }}</span>{% endfor %}
+      {% if not u.is_active %}<span class="badge badge-disabled">Suspended</span>{% elif u.is_locked %}<span class="badge badge-pending">Locked until {{ u.locked_until|dt('%H:%M') }} UTC</span>{% else %}<span class="badge badge-active">Active</span>{% endif %}
+      {% if u.verification_status != 'not_submitted' %}<span class="badge badge-kyc-{{ u.verification_status }}">KYC: {{ VERIFICATION_STATUSES[u.verification_status] }}</span>{% endif %}
+    </div>
+  </div>
+  <dl class="facts">
+    <div><dt>Joined</dt><dd>{{ u.created_at|dt }}</dd></div>
+    <div><dt>Last login</dt><dd>{{ u.last_login_at|dt('%d %b %Y, %H:%M') }}</dd></div>
+    <div><dt>Listings</dt><dd>{{ total_listings }}</dd></div>
+    <div><dt>Enquiries sent</dt><dd>{{ sent }}</dd></div>
+  </dl>
+</div>
+
+<div class="panel-grid">
+  <div>
+    <form class="panel" method="post" action="{{ url_for('admin.user_edit', uid=u.id) }}" data-validate>
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <h2>Profile</h2>
+      {% set creating = False %}
+      <fieldset {% if not can('users.manage') or protected %}disabled{% endif %} class="plain">
+        {% include "admin/_user_fields.html" %}
+        {% if can('users.manage') and not protected %}<button class="btn btn-primary">Save profile</button>{% endif %}
+      </fieldset>
+    </form>
+
+    {% if u.partner_profile %}
+    <div class="panel">
+      <h2>Partner profile</h2>
+      <table class="spec-table">
+        <tr><th>Partner type</th><td>{{ u.partner_profile.partner_type }}</td></tr>
+        <tr><th>Serves</th><td>{{ u.partner_profile.service_states or '—' }}</td></tr>
+        <tr><th>Website</th><td>{% if u.partner_profile.website %}<a href="{{ u.partner_profile.website }}" target="_blank" rel="noopener">{{ u.partner_profile.website }}</a>{% else %}—{% endif %}</td></tr>
+        <tr><th>Services</th><td>{{ u.partner_profile.description or '—' }}</td></tr>
+      </table>
+    </div>
+    {% endif %}
+
+    <div class="panel">
+      <h2>Listings {% if total_listings and can('products.view') %}<a href="{{ url_for('admin.products', user=u.id) }}">All {{ total_listings }} →</a>{% endif %}</h2>
+      {% if listings %}
+      <table class="table"><thead><tr><th>Listing</th><th>Type</th><th>Status</th><th>Created</th></tr></thead><tbody>
+      {% for p in listings %}
+        <tr><td>{% if can('products.edit') %}<a href="{{ url_for('admin.product_form', pid=p.id) }}">{{ p.title }}</a>{% else %}{{ p.title }}{% endif %}<br><span class="small muted">{{ p.ref_code }}</span></td>
+          <td><span class="badge badge-{{ p.listing_type }}">{{ p.listing_type }}</span></td><td>{{ status_badge(p.status) }}</td><td class="small">{{ p.created_at|dt }}</td></tr>
+      {% endfor %}</tbody></table>
+      {% else %}<p class="muted">No listings.</p>{% endif %}
+    </div>
+  </div>
+
+  <div>
+    <form class="panel" id="roles" method="post" action="{{ url_for('admin.user_roles_update', uid=u.id) }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <h2>Roles</h2>
+      {% set editable_roles = can('users.manage') and not self_view and not protected %}
+      {% if self_view %}<p class="small muted">You can't change your own roles.</p>{% endif %}
+      <div class="role-pick compact">
+        {% for r in all_roles %}{% set held = r in u.roles %}{% set allowed = editable_roles and r.id in assignable %}
+        <label class="role-option{% if not allowed %} is-locked{% endif %}" {% if not allowed and editable_roles %}title="Needs the 'Manage roles' permission"{% endif %}>
+          <input type="checkbox" name="roles" value="{{ r.id }}" {% if held %}checked{% endif %} {% if not allowed %}disabled{% endif %}>
+          {% if held and not allowed %}<input type="hidden" name="roles" value="{{ r.id }}">{% endif %}
+          <span><b>{{ r.name }}</b> <span class="badge {{ 'badge-staff' if r.is_staff else 'badge-role' }}">{{ 'Staff' if r.is_staff else 'Marketplace' }}</span></span>
+        </label>
+        {% endfor %}
+      </div>
+      {% if editable_roles %}<button class="btn btn-primary btn-sm">Update roles</button>{% endif %}
+      <details class="small perm-summary"><summary>Effective permissions ({{ u.permissions|length }})</summary>
+        <ul>{% for grp, perms in PERMISSION_GROUPS %}{% for code, label in perms if code in u.permissions %}<li><code>{{ code }}</code> {{ label }}</li>{% endfor %}{% endfor %}</ul>
+      </details>
+    </form>
+
+    {% if u.account_type in ('seller', 'partner') or u.gstin or u.pan %}
+    <div class="panel" id="kyc">
+      <h2>KYC verification</h2>
+      <table class="spec-table">
+        <tr><th>Status</th><td><span class="badge badge-kyc-{{ u.verification_status }}">{{ VERIFICATION_STATUSES[u.verification_status] }}</span>{% if u.verified_at %} <span class="small muted">on {{ u.verified_at|dt }}</span>{% endif %}</td></tr>
+        <tr><th>GSTIN</th><td>{{ u.gstin or '—' }}</td></tr>
+        <tr><th>PAN</th><td>{{ u.pan or '—' }}</td></tr>
+        {% if u.verification_note %}<tr><th>Note</th><td>{{ u.verification_note }}</td></tr>{% endif %}
+      </table>
+      {% if can('users.verify') %}
+      <form method="post" action="{{ url_for('admin.user_verify', uid=u.id) }}" class="kyc-form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <div class="field"><label for="kyc-note">Note to user (required when rejecting)</label><input id="kyc-note" name="note" maxlength="255" placeholder="e.g. GSTIN does not match company name"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm" name="status" value="verified">Mark verified</button>
+          <button class="btn btn-ghost btn-sm" name="status" value="rejected">Reject</button>
+          {% if u.verification_status != 'pending' %}<button class="btn btn-ghost btn-sm" name="status" value="pending">Back to pending</button>{% endif %}
+        </div>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if can('users.manage') and not self_view and not protected %}
+    <div class="panel">
+      <h2>Security</h2>
+      <p class="small muted">Failed logins since last success: {{ u.failed_logins }}. Password last changed: {{ u.password_changed_at|dt }}.</p>
+      <div class="btn-row">
+        <form method="post" action="{{ url_for('admin.user_status', uid=u.id) }}" class="inline">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          {% if u.is_active %}<button class="btn btn-ghost btn-sm text-danger" name="action" value="suspend" onclick="return confirm('Suspend {{ u.email }}? They will be signed out and unable to log in.')">Suspend</button>
+          {% else %}<button class="btn btn-primary btn-sm" name="action" value="activate">Re-activate</button>{% endif %}
+          {% if u.is_locked %}<button class="btn btn-ghost btn-sm" name="action" value="unlock">Unlock</button>{% endif %}
+        </form>
+        <form method="post" action="{{ url_for('admin.user_password', uid=u.id) }}" class="inline" onsubmit="return confirm('Issue a temporary password for {{ u.email }}? Their current password stops working.')">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-ghost btn-sm">Reset password</button>
+        </form>
+        {% if not u.is_super_admin %}
+        <form method="post" action="{{ url_for('admin.user_delete', uid=u.id) }}" class="inline" onsubmit="return confirm('Delete {{ u.email }} permanently? Only possible for users without listings or enquiries.')">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="btn btn-ghost btn-sm text-danger">Delete</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="panel">
+      <h2>Activity {% if can('audit.view') %}<a href="{{ url_for('admin.audit', actor=u.email) }}">Audit log →</a>{% endif %}</h2>
+      {% if history %}
+      <ul class="timeline">
+        {% for h in history %}
+        <li><span class="small muted">{{ h.created_at|dt('%d %b %Y, %H:%M') }}</span><br>
+          <code>{{ h.action }}</code> {% if h.actor_id and h.actor_id != u.id %}by {{ h.actor.name if h.actor else 'deleted user' }}{% endif %}
+          {% if h.details %}<br><span class="small">{{ h.details }}</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="muted">No recorded activity yet.</p>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

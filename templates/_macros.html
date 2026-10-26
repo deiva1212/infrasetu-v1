@@ -1,0 +1,132 @@
+{% macro label(name, text, required=False) -%}
+<label for="f-{{ name }}">{{ text }}{% if required %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+{%- endmacro %}
+
+{% macro err(name, errors) -%}
+{% if errors and errors.get(name) %}<div class="field-error" role="alert">{{ errors[name] }}</div>{% endif %}
+{%- endmacro %}
+
+{% macro input(name, text, form, errors, type="text", required=False, placeholder="", help="", attrs="") -%}
+<div class="field{% if errors and errors.get(name) %} has-error{% endif %}">
+  {{ label(name, text, required) }}
+  <input id="f-{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ form.get(name, '') if form else '' }}"
+         placeholder="{{ placeholder }}" {% if required %}required{% endif %} {{ attrs|safe }}>
+  {% if help %}<small class="help">{{ help }}</small>{% endif %}
+  {{ err(name, errors) }}
+</div>
+{%- endmacro %}
+
+{% macro textarea(name, text, form, errors, required=False, rows=4, placeholder="", help="", attrs="") -%}
+<div class="field{% if errors and errors.get(name) %} has-error{% endif %}">
+  {{ label(name, text, required) }}
+  <textarea id="f-{{ name }}" name="{{ name }}" rows="{{ rows }}" placeholder="{{ placeholder }}"
+            {% if required %}required{% endif %} {{ attrs|safe }}>{{ form.get(name, '') if form else '' }}</textarea>
+  {% if help %}<small class="help">{{ help }}</small>{% endif %}
+  {{ err(name, errors) }}
+</div>
+{%- endmacro %}
+
+{% macro select(name, text, options, form, errors, required=False, placeholder="Select…", help="", attrs="") -%}
+{# options: list of values, or list of (value, label) tuples #}
+{% set current = (form.get(name, '') if form else '')|string %}
+<div class="field{% if errors and errors.get(name) %} has-error{% endif %}">
+  {{ label(name, text, required) }}
+  <select id="f-{{ name }}" name="{{ name }}" {% if required %}required{% endif %} {{ attrs|safe }}>
+    {% if placeholder %}<option value="">{{ placeholder }}</option>{% endif %}
+    {% for o in options %}
+      {% if o is string or o is number %}{% set v, l = o, o %}{% else %}{% set v, l = o[0], o[1] %}{% endif %}
+      <option value="{{ v }}" {% if current == v|string %}selected{% endif %}>{{ l }}</option>
+    {% endfor %}
+  </select>
+  {% if help %}<small class="help">{{ help }}</small>{% endif %}
+  {{ err(name, errors) }}
+</div>
+{%- endmacro %}
+
+{% macro category_select(name, text, categories, form, errors, required=True, leaf_only=False, placeholder="Select category…", attrs="") -%}
+{% set current = (form.get(name, '') if form else '')|string %}
+<div class="field{% if errors and errors.get(name) %} has-error{% endif %}">
+  {{ label(name, text, required) }}
+  <select id="f-{{ name }}" name="{{ name }}" {% if required %}required{% endif %} {{ attrs|safe }}>
+    <option value="">{{ placeholder }}</option>
+    {% for grp in CATEGORY_GROUPS %}
+      <optgroup label="{{ GROUP_LABELS[grp] }}">
+      {% for c in categories if c.group == grp and not c.parent_id %}
+        {% if c.children and leaf_only %}
+          {% for ch in c.children if ch.is_active %}
+            <option value="{{ ch.id }}" {% if current == ch.id|string %}selected{% endif %}>{{ c.name }} › {{ ch.name }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="{{ c.id }}" {% if current == c.id|string %}selected{% endif %}>{{ c.name }}{% if c.children %} (all){% endif %}</option>
+          {% for ch in c.children if ch.is_active %}
+            <option value="{{ ch.id }}" {% if current == ch.id|string %}selected{% endif %}>&nbsp;&nbsp;↳ {{ ch.name }}</option>
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+      </optgroup>
+    {% endfor %}
+  </select>
+  {{ err(name, errors) }}
+</div>
+{%- endmacro %}
+
+{% macro check(name, text, form, errors=None, help="") -%}
+<div class="field check{% if errors and errors.get(name) %} has-error{% endif %}">
+  <label class="checkbox"><input type="checkbox" name="{{ name }}" value="1" {% if form and form.get(name) in ('1', 1, True, 'True') %}checked{% endif %}> {{ text }}</label>
+  {% if help %}<small class="help">{{ help }}</small>{% endif %}
+  {{ err(name, errors) }}
+</div>
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+<span class="badge badge-{{ status }}">{{ status|capitalize }}</span>
+{%- endmacro %}
+
+{% macro pager(page, endpoint_url) -%}
+{% if page and page.pages > 1 %}
+<nav class="pager" aria-label="Pagination">
+  {% if page.has_prev %}<a href="{{ url_with(page=page.prev_num) }}">← Prev</a>{% endif %}
+  {% for n in page.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+    {% if n %}{% if n == page.page %}<span class="current">{{ n }}</span>{% else %}<a href="{{ url_with(page=n) }}">{{ n }}</a>{% endif %}
+    {% else %}<span class="gap">…</span>{% endif %}
+  {% endfor %}
+  {% if page.has_next %}<a href="{{ url_with(page=page.next_num) }}">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{%- endmacro %}
+
+{% macro placeholder_img(group) -%}
+<div class="img-placeholder" aria-hidden="true">
+  {% if group == 'Heavy Equipment' %}
+  <svg viewBox="0 0 120 70"><path d="M8 52h62v8H8zM14 40h40v12H14zM30 28h18v12H30zM54 40l18-24 22 6-4 6-16-4-12 16z" fill="currentColor"/><path d="M90 28l14 10-6 12-14-4z" fill="currentColor"/><circle cx="18" cy="62" r="5" fill="currentColor"/><circle cx="60" cy="62" r="5" fill="currentColor"/></svg>
+  {% else %}
+  <svg viewBox="0 0 120 70"><path d="M6 20h66v32H6zM74 30h22l14 12v10H74z" fill="currentColor"/><path d="M80 34h12l8 8H80z" fill="var(--placeholder-bg)"/><circle cx="22" cy="56" r="7" fill="currentColor"/><circle cx="50" cy="56" r="7" fill="currentColor"/><circle cx="92" cy="56" r="7" fill="currentColor"/></svg>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro product_card(p) -%}
+<article class="card product-card">
+  <a href="{{ url_for('public.listing', ref=p.ref_code) }}" class="card-media">
+    {% if p.cover_image %}<img src="{{ url_for('static', filename='uploads/' ~ p.cover_image) }}" alt="{{ p.title }}" loading="lazy">
+    {% else %}{{ placeholder_img(p.category.group) }}{% endif %}
+    <span class="tag tag-{{ p.listing_type }}">{{ 'For Sale' if p.listing_type == 'sell' else 'For Rent' }}</span>
+    {% if p.is_featured %}<span class="tag tag-featured">Featured</span>{% endif %}
+  </a>
+  <div class="card-body">
+    <div class="card-cat">{{ p.category.name }}</div>
+    <h3><a href="{{ url_for('public.listing', ref=p.ref_code) }}">{{ p.title }}</a></h3>
+    <ul class="meta">
+      <li>{{ p.manufacture_year }}</li><li>{{ p.usage_label }}</li><li>{{ p.condition }}</li>
+    </ul>
+    <div class="card-foot">
+      {% if p.listing_type == 'sell' %}
+        <strong class="price">{{ p.price|inr_short }}</strong>
+      {% else %}
+        <strong class="price">{{ p.rent_rate|inr }}<small>/{{ p.rent_period|lower }}</small></strong>
+      {% endif %}
+      <span class="loc">{{ p.city }}, {{ p.state }}</span>
+    </div>
+  </div>
+</article>
+{%- endmacro %}

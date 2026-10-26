@@ -1,0 +1,66 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import pager, status_badge %}
+{% block admin_title %}Products{% endblock %}
+{% block heading %}Products · Listings{% endblock %}
+{% block top_actions %}{% if can('products.edit') %}<a class="btn btn-primary btn-sm" href="{{ url_for('admin.product_form') }}">+ New product</a>{% endif %}{% endblock %}
+{% block admin_content %}
+<nav class="tabs">
+  <a href="{{ url_with(status='', page='') }}" class="{{ 'active' if not request.args.get('status') }}">All <span>{{ status_counts.values()|sum }}</span></a>
+  {% for s in PRODUCT_STATUSES %}
+    <a href="{{ url_with(status=s, page='') }}" class="{{ 'active' if request.args.get('status') == s }}">{{ s|capitalize }} <span>{{ status_counts.get(s, 0) }}</span></a>
+  {% endfor %}
+</nav>
+<form class="toolbar" method="get">
+  <input type="hidden" name="status" value="{{ request.args.get('status', '') }}">
+  <div class="field"><label>Search</label><input name="q" value="{{ request.args.get('q', '') }}" placeholder="Title, ref, city, make, reg. no"></div>
+  <div class="field"><label>Type</label><select name="type"><option value="">Sell & rent</option>
+    {% for k, l in LISTING_TYPES.items() %}<option value="{{ k }}" {% if request.args.get('type') == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="field"><label>Category</label><select name="category"><option value="">All</option>
+    {% for c in cats %}<option value="{{ c.id }}" {% if request.args.get('category') == c.id|string %}selected{% endif %}>{{ c.full_name }}</option>{% endfor %}</select></div>
+  <button class="btn btn-dark btn-sm">Filter</button>
+</form>
+
+<form method="post" action="{{ url_for('admin.products_bulk') }}" class="table-wrap">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="admin_note" value="">
+  <div class="bulk-bar">
+    <span class="small muted">With selected:</span>
+    <select name="action">
+      <option value="">Choose action…</option>
+      {% if can('products.moderate') %}<option value="approved">Approve</option><option value="rejected">Reject</option>
+      <option value="inactive">Deactivate</option>{% endif %}{% if can('products.edit') %}<option value="feature">Mark featured</option>
+      <option value="unfeature">Remove featured</option><option value="delete">Delete</option>{% endif %}
+    </select>
+    <button class="btn btn-ghost btn-xs" onclick="return this.form.action.value !== 'delete' || confirm('Delete selected listings permanently?')">Apply</button>
+  </div>
+  <table class="table">
+    <thead><tr><th><input type="checkbox" data-check-all aria-label="Select all"></th><th></th><th>Listing</th><th>Type</th><th>Price</th><th>Location</th><th>Seller</th><th>Status</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+    {% for p in page.items %}
+      <tr>
+        <td><input type="checkbox" name="ids" value="{{ p.id }}" aria-label="Select {{ p.ref_code }}"></td>
+        <td>{% if p.cover_image %}<img class="thumb-sm" src="{{ url_for('static', filename='uploads/' ~ p.cover_image) }}" alt="">{% else %}<div class="thumb-sm"></div>{% endif %}</td>
+        <td>{% if can('products.edit') %}<a href="{{ url_for('admin.product_form', pid=p.id) }}"><b>{{ p.title }}</b></a>{% else %}<b>{{ p.title }}</b>{% endif %}{% if p.is_featured %} <span class="badge badge-pending">★</span>{% endif %}<br>
+          <span class="small muted">{{ p.ref_code }} · {{ p.catalogue.display_name }} · {{ p.category.name }}</span></td>
+        <td><span class="badge badge-{{ p.listing_type }}">{{ p.listing_type }}</span></td>
+        <td class="small">{% if p.listing_type == 'sell' %}{{ p.price|inr }}{% else %}{{ p.rent_rate|inr }}/{{ p.rent_period|lower }}{% endif %}</td>
+        <td class="small">{{ p.city }}<br>{{ p.state }}</td>
+        <td class="small">{{ p.user.name }}<br>{{ p.contact_phone }}</td>
+        <td>{{ status_badge(p.status) }}</td>
+        <td class="small">{{ p.created_at|dt }}</td>
+        <td class="actions">
+          {% if can('products.moderate') %}{% if p.status in ('pending', 'rejected') %}<button class="btn btn-primary btn-xs" formaction="{{ url_for('admin.product_moderate', pid=p.id) }}" name="status" value="approved">Approve</button>{% endif %}
+          {% if p.status in ('pending', 'approved') %}<button class="btn btn-ghost btn-xs" formaction="{{ url_for('admin.product_moderate', pid=p.id) }}" name="status" value="rejected" onclick="const r=prompt('Reason for rejection (shown to seller):'); if(r===null) return false; this.form.admin_note.value=r;">Reject</button>{% endif %}{% endif %}
+          {% if can('products.edit') %}<a href="{{ url_for('admin.product_form', pid=p.id) }}">Edit</a>{% endif %}
+          <a href="{{ url_for('public.listing', ref=p.ref_code) }}" target="_blank">View</a>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="10" class="muted">No products match.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</form>
+<p class="small muted">{{ page.total }} product{{ 's' if page.total != 1 }}</p>
+{{ pager(page, '') }}
+{% endblock %}

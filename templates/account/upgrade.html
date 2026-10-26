@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Become a seller — Infrasetu{% endblock %}
+{% block content %}
+{% set u = g.user %}
+<div class="wrap narrow">
+  <div class="empty-state">
+    {% if u.account_type == 'partner' %}
+      <h1>Your partner account isn't verified yet</h1>
+      <p>Partners can post listings once our team has verified their GSTIN. Current status: <b>{{ VERIFICATION_STATUSES[u.verification_status] }}</b>{% if u.verification_note %} — {{ u.verification_note }}{% endif %}.</p>
+      <a class="btn btn-primary" href="{{ url_for('auth.account') }}">Go to my account</a>
+    {% elif u.account_type == 'buyer' %}
+      <h1>Become a seller to {{ 'rent out' if wanted == 'rent' else 'sell' }} machines</h1>
+      <p>Your account is a buyer account. Upgrade to a seller account in one click — you keep your enquiries and can still buy and rent.</p>
+      <form method="post" action="{{ url_for('auth.become_seller') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="type" value="{{ wanted }}">
+        <button class="btn btn-primary">Become a seller</button>
+        <a class="btn btn-ghost" href="{{ url_for('auth.account') }}">Not now</a>
+      </form>
+    {% else %}
+      <h1>Your account can't post listings</h1>
+      <p>Your role doesn't include posting listings. Please contact support if you think this is wrong.</p>
+      <a class="btn btn-primary" href="{{ url_for('auth.account') }}">Go to my account</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

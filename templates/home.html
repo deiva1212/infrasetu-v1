@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_macros.html" import product_card, category_select, select %}
+{% block content %}
+<section class="hero">
+  <div class="wrap hero-inner">
+    <div class="hero-copy">
+      <p class="eyebrow">Commercial vehicles · Construction equipment</p>
+      <h1>Buy, sell and rent heavy machinery that keeps India building.</h1>
+      <p class="lead">{{ stats.sell }} machines for sale and {{ stats.rent }} for rent across {{ stats.brands }} brands — every listing checked by our team.</p>
+    </div>
+    <form class="search-panel" action="{{ url_for('public.search') }}" method="get" data-validate>
+      <input type="hidden" name="submitted" value="1">
+      <div class="seg" role="radiogroup" aria-label="I want to">
+        <label><input type="radio" name="intent" value="buy" checked><span>Buy</span></label>
+        <label><input type="radio" name="intent" value="rent"><span>Rent</span></label>
+      </div>
+      {{ category_select('category', 'What do you need?', categories, {}, {}, required=True) }}
+      {{ select('state', 'Where?', [('ALL', 'All India')] + INDIAN_STATES|map('string')|list, {}, {}, required=True, placeholder='Select state…') }}
+      <button class="btn btn-primary btn-block">Search machines</button>
+      <p class="small muted">Need more filters? <a href="{{ url_for('public.search') }}">Advanced search</a></p>
+    </form>
+  </div>
+</section>
+
+<section class="wrap section">
+  {% for grp in CATEGORY_GROUPS %}
+  <div class="section-head"><h2>{{ GROUP_LABELS[grp] }}</h2></div>
+  <div class="cat-grid">
+    {% for c in categories if c.group == grp and not c.parent_id %}
+      {% set n = counts.get(c.id, 0) %}
+      <a class="cat-tile" href="{{ url_for('public.search', category=c.id) }}">
+        <span class="cat-name">{{ c.name }}</span>
+        <span class="cat-count">{{ n }} listing{{ '' if n == 1 else 's' }}</span>
+        {% if c.children %}<span class="cat-sub">{{ c.children|selectattr('is_active')|map(attribute='name')|join(' · ') }}</span>{% endif %}
+      </a>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</section>
+
+{% if featured %}
+<section class="wrap section">
+  <div class="section-head"><h2>Latest listings</h2><a href="{{ url_for('public.search') }}">Search all →</a></div>
+  <div class="grid-cards">{% for p in featured %}{{ product_card(p) }}{% endfor %}</div>
+</section>
+{% endif %}
+
+<section class="band">
+  <div class="wrap steps">
+    <div><span class="step-n">01</span><h3>List with full details</h3><p>Pick the exact make and model from our catalogue and fill in the fields buyers actually ask about.</p></div>
+    <div><span class="step-n">02</span><h3>We verify</h3><p>Our team reviews every listing before it goes live, so searches return serious offers only.</p></div>
+    <div><span class="step-n">03</span><h3>Get qualified leads</h3><p>Buyers and renters send structured enquiries with budgets, dates and work site.</p></div>
+  </div>
+  <div class="wrap band-cta">
+    <a class="btn btn-primary" href="{{ url_for('public.post_listing', type='sell') }}">Sell a machine</a>
+    <a class="btn btn-ghost" href="{{ url_for('public.post_listing', type='rent') }}">Rent out your fleet</a>
+  </div>
+</section>
+{% endblock %}

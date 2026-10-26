@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% from "_macros.html" import pager %}
+{% block admin_title %}Users{% endblock %}
+{% block heading %}User management{% endblock %}
+{% block top_actions %}{% if can('users.manage') %}<a class="btn btn-primary btn-sm" href="{{ url_for('admin.user_new') }}">+ New user</a>{% endif %}{% endblock %}
+{% block admin_content %}
+{% set a = request.args %}
+<nav class="tabs">
+  <a href="{{ url_with(type='', kyc='', page='') }}" class="{{ 'active' if not a.get('type') and not a.get('kyc') }}">All <span>{{ type_counts.values()|sum }}</span></a>
+  {% for k, l in ACCOUNT_TYPES.items() %}
+    <a href="{{ url_with(type=k, kyc='', page='') }}" class="{{ 'active' if a.get('type') == k }}">{{ l if k == 'staff' else l ~ 's' }} <span>{{ type_counts.get(k, 0) }}</span></a>
+  {% endfor %}
+  {% if can('users.verify') %}<a href="{{ url_with(kyc='pending', type='', page='') }}" class="{{ 'active' if a.get('kyc') == 'pending' }} tab-alert">KYC to review <span>{{ kyc_pending }}</span></a>{% endif %}
+</nav>
+<form class="toolbar" method="get">
+  <input type="hidden" name="type" value="{{ a.get('type', '') }}">
+  <div class="field"><label>Search</label><input name="q" value="{{ a.get('q', '') }}" placeholder="Name, email, mobile, company, GSTIN"></div>
+  <div class="field"><label>Role</label><select name="role"><option value="">Any role</option>
+    {% for r in roles %}<option value="{{ r.id }}" {% if a.get('role') == r.id|string %}selected{% endif %}>{{ r.name }}</option>{% endfor %}</select></div>
+  <div class="field"><label>Status</label><select name="status"><option value="">Any</option>
+    {% for k, l in [('active', 'Active'), ('suspended', 'Suspended'), ('locked', 'Locked out')] %}<option value="{{ k }}" {% if a.get('status') == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="field"><label>KYC</label><select name="kyc"><option value="">Any</option>
+    {% for k, l in VERIFICATION_STATUSES.items() %}<option value="{{ k }}" {% if a.get('kyc') == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <button class="btn btn-dark btn-sm">Filter</button>
+</form>
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>User</th><th>Account</th><th>Roles</th><th>KYC</th><th>Listings</th><th>Last login</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for u in page.items %}
+    <tr>
+      <td><a href="{{ url_for('admin.user_detail', uid=u.id) }}"><b>{{ u.name }}</b></a>{% if u.id == g.user.id %} <span class="small muted">(you)</span>{% endif %}<br>
+        <span class="small muted">{{ u.email }} · {{ u.phone }}</span>{% if u.company %}<br><span class="small">{{ u.company }}</span>{% endif %}</td>
+      <td><span class="badge badge-type-{{ u.account_type }}">{{ u.account_label }}</span><br>
+        <span class="small muted">{{ u.partner_profile.partner_type if u.partner_profile and u.account_type == 'partner' else (u.business_type or '') }}</span></td>
+      <td>{% for r in u.roles %}<span class="badge {{ 'badge-staff' if r.is_staff else 'badge-role' }}">{{ r.name }}</span> {% endfor %}</td>
+      <td>{% if u.verification_status != 'not_submitted' %}<span class="badge badge-kyc-{{ u.verification_status }}">{{ VERIFICATION_STATUSES[u.verification_status] }}</span>{% else %}<span class="muted small">—</span>{% endif %}</td>
+      <td>{% if counts.get(u.id) and can('products.view') %}<a href="{{ url_for('admin.products', user=u.id) }}">{{ counts.get(u.id) }}</a>{% else %}{{ counts.get(u.id, 0) }}{% endif %}</td>
+      <td class="small">{{ u.last_login_at|dt('%d %b %Y, %H:%M') }}</td>
+      <td>{% if not u.is_active %}<span class="badge badge-disabled">Suspended</span>{% elif u.is_locked %}<span class="badge badge-pending">Locked</span>{% else %}<span class="badge badge-active">Active</span>{% endif %}</td>
+      <td class="actions"><a href="{{ url_for('admin.user_detail', uid=u.id) }}">{{ 'Manage' if can('users.manage') else 'View' }}</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="8" class="muted">No users match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="small muted">{{ page.total }} user{{ 's' if page.total != 1 }}</p>
+{{ pager(page, '') }}
+{% endblock %}

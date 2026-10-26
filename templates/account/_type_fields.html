@@ -1,0 +1,37 @@
+{% from "_macros.html" import input, textarea, select, err %}
+{# Account-type specific fields. Expects: acct, form, errors #}
+{% if acct == 'buyer' %}
+  <div class="row-2">
+    {{ select('business_type', 'I am a', BUYER_TYPES, form, errors, required=True) }}
+    {{ input('company', 'Company / organisation', form, errors, help='Required unless you are buying as an individual') }}
+  </div>
+{% elif acct == 'seller' %}
+  <div class="row-2">
+    {{ select('business_type', 'Seller type', SELLER_TYPES, form, errors, required=True) }}
+    {{ input('company', 'Company / fleet name', form, errors, help='Required unless you are an individual owner') }}
+  </div>
+  <div class="row-2">
+    {{ input('gstin', 'GSTIN', form, errors, placeholder='29ABCDE1234F1Z5', attrs='maxlength=15 style="text-transform:uppercase"', help='Required for dealers and rental companies. Verified sellers get a badge.') }}
+    {{ input('pan', 'PAN', form, errors, placeholder='ABCDE1234F', attrs='maxlength=10 style="text-transform:uppercase"', help='Optional') }}
+  </div>
+{% elif acct == 'partner' %}
+  <div class="row-2">
+    {{ select('partner_type', 'Partner type', PARTNER_TYPES, form, errors, required=True) }}
+    {{ input('company', 'Registered company name', form, errors, required=True) }}
+  </div>
+  <div class="row-3">
+    {{ input('gstin', 'GSTIN', form, errors, required=True, placeholder='29ABCDE1234F1Z5', attrs='maxlength=15 style="text-transform:uppercase"') }}
+    {{ input('pan', 'Company PAN', form, errors, placeholder='ABCDE1234F', attrs='maxlength=10 style="text-transform:uppercase"') }}
+    {{ input('website', 'Website', form, errors, type='url', placeholder='https://') }}
+  </div>
+  {% set chosen = form.getlist('service_states') if form.getlist is defined else (form.get('service_states') or []) %}
+  <div class="field{% if errors.get('service_states') %} has-error{% endif %}">
+    <label>States you serve <span class="req">*</span></label>
+    <div class="check-grid">
+      <label class="checkbox strong"><input type="checkbox" name="service_states" value="All India" {% if 'All India' in chosen %}checked{% endif %}> All India</label>
+      {% for s in INDIAN_STATES %}<label class="checkbox"><input type="checkbox" name="service_states" value="{{ s }}" {% if s in chosen %}checked{% endif %}> {{ s }}</label>{% endfor %}
+    </div>
+    {{ err('service_states', errors) }}
+  </div>
+  {{ textarea('description', 'Services offered', form, errors, required=True, rows=3, placeholder='e.g. Loans for used tippers and excavators up to 85% of value, decision in 48 hours, 14 branches across South India.', attrs='minlength=30') }}
+{% endif %}

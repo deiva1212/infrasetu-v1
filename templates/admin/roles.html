@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+{% block admin_title %}Roles & permissions{% endblock %}
+{% block top_actions %}<a class="btn btn-primary btn-sm" href="{{ url_for('admin.role_form') }}">+ New role</a>{% endblock %}
+{% block admin_content %}
+<p class="muted">A user's access is the sum of their roles' permissions. <b>Staff</b> roles open the admin panel; <b>marketplace</b> roles decide what buyers, sellers and partners can do on the site. Built-in roles can be edited but not deleted; Super Admin always has every permission.</p>
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Role</th><th>Type</th><th>Permissions</th><th>Users</th><th></th></tr></thead>
+  <tbody>
+  {% for r in items %}
+    <tr>
+      <td><a href="{{ url_for('admin.role_form', rid=r.id) }}"><b>{{ r.name }}</b></a>{% if r.is_system %} <span class="badge badge-inactive">Built-in</span>{% endif %}<br><span class="small muted">{{ r.description or '' }}</span></td>
+      <td><span class="badge {{ 'badge-staff' if r.is_staff else 'badge-role' }}">{{ 'Staff' if r.is_staff else 'Marketplace' }}</span></td>
+      <td class="small">{% if r.slug == 'super_admin' %}<b>All permissions</b>{% else %}{% for code in r.codes|sort %}<code class="perm">{{ code }}</code> {% endfor %}{% endif %}</td>
+      <td><a href="{{ url_for('admin.users', role=r.id) }}">{{ counts.get(r.id, 0) }}</a></td>
+      <td class="actions">
+        <a href="{{ url_for('admin.role_form', rid=r.id) }}">Edit</a>
+        {% if not r.is_system %}
+        <form method="post" action="{{ url_for('admin.role_delete', rid=r.id) }}" class="inline" onsubmit="return confirm('Delete role {{ r.name }}?')">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link-btn text-danger">Delete</button></form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

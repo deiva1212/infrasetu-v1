@@ -1,0 +1,37 @@
+{% extends "admin/base.html" %}
+{% block admin_title %}Categories{% endblock %}
+{% block top_actions %}<a class="btn btn-primary btn-sm" href="{{ url_for('admin.category_form') }}">+ New category</a>{% endblock %}
+{% block admin_content %}
+{% macro row(c, child=False) %}
+<tr class="{{ 'tree-child' if child }}">
+  <td><a href="{{ url_for('admin.category_form', cid=c.id) }}"><b>{{ c.name }}</b></a><br><span class="small muted">/{{ c.slug }}</span></td>
+  <td>{{ c.group }}</td>
+  <td>{{ 'Engine hours' if c.usage_unit == 'hours' else 'Kilometres' }}</td>
+  <td>{% if c.allow_sell %}<span class="badge badge-sell">sell</span>{% endif %} {% if c.allow_rent %}<span class="badge badge-rent">rent</span>{% endif %}</td>
+  <td>{{ c.attributes|length }}</td>
+  <td>{{ ccounts.get(c.id, 0) }}</td>
+  <td>{{ pcounts.get(c.id, 0) }}</td>
+  <td><span class="badge badge-{{ 'active' if c.is_active else 'inactive' }}">{{ 'Active' if c.is_active else 'Inactive' }}</span></td>
+  <td class="actions">
+    <a href="{{ url_for('admin.category_form', cid=c.id) }}">Edit</a>
+    <a href="{{ url_for('admin.catalogue', category=c.id) }}">Models</a>
+    <form method="post" action="{{ url_for('admin.category_delete', cid=c.id) }}" class="inline" onsubmit="return confirm('Delete category {{ c.name }}?')">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link-btn text-danger">Delete</button></form>
+  </td>
+</tr>
+{% endmacro %}
+<p class="muted">Two-level hierarchy (e.g. <i>Trucks › Tipper</i>). Products and catalogue models are attached to the most specific (leaf) category. Each category can define its own listing fields.</p>
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Category</th><th>Group</th><th>Usage unit</th><th>Allows</th><th>Fields</th><th>Models</th><th>Products</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for c in roots %}
+    {{ row(c) }}
+    {% for ch in c.children|sort(attribute='sort_order') %}{{ row(ch, True) }}{% endfor %}
+  {% else %}
+    <tr><td colspan="9" class="muted">No categories yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

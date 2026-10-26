@@ -1,0 +1,112 @@
+{% from "_macros.html" import input, textarea, select, category_select, check, err, label %}
+{# Shared listing form fields. Expects: form, errors, categories, product (or None), current_year #}
+{% set ltype = form.get('listing_type', 'sell') or 'sell' %}
+<div class="product-form" data-product-form
+     data-form='{{ (form.to_dict() if form.to_dict is defined else form)|tojson }}'
+     data-errors='{{ (errors or {})|tojson }}'>
+
+  <section class="form-section">
+    <h2><span>1</span> What are you listing?</h2>
+    <div class="field{% if errors.get('listing_type') %} has-error{% endif %}">
+      {{ label('listing_type', 'Listing type', True) }}
+      <div class="seg seg-lg">
+        <label><input type="radio" name="listing_type" value="sell" {% if ltype == 'sell' %}checked{% endif %} required><span>Sell</span></label>
+        <label><input type="radio" name="listing_type" value="rent" {% if ltype == 'rent' %}checked{% endif %}><span>Rent out</span></label>
+      </div>
+      {{ err('listing_type', errors) }}
+    </div>
+    <div class="row-2">
+      {{ category_select('category_id', 'Category', categories, form, errors, required=True, leaf_only=True, attrs='data-meta-target') }}
+      <div class="field{% if errors.get('catalogue_id') %} has-error{% endif %}">
+        {{ label('catalogue_id', 'Make & model', True) }}
+        <select id="f-catalogue_id" name="catalogue_id" required data-model><option value="">Select category first…</option></select>
+        <small class="help">Can't find your model? Contact us and we'll add it to the catalogue.</small>
+        {{ err('catalogue_id', errors) }}
+      </div>
+    </div>
+    {{ input('title', 'Listing title', form, errors, required=True, placeholder='e.g. 2021 Tata Signa 2823.K tipper, single owner, well maintained', attrs='minlength=10 maxlength=200') }}
+  </section>
+
+  <section class="form-section">
+    <h2><span>2</span> Machine details</h2>
+    <div class="row-3">
+      {{ input('manufacture_year', 'Year of manufacture', form, errors, type='number', required=True, attrs='min=1970 max=' ~ current_year) }}
+      {{ select('condition', 'Condition', CONDITIONS, form, errors, required=True) }}
+      {{ input('usage_reading', 'Kilometres driven', form, errors, type='number', required=True, attrs='min=0 data-usage-input') }}
+    </div>
+    <div class="row-3">
+      {{ select('fuel_type', 'Fuel type', FUEL_TYPES, form, errors, required=True) }}
+      {{ input('registration_no', 'Registration number', form, errors, placeholder='e.g. KA01AB1234', attrs='data-reg-input', help='Required for used commercial vehicles') }}
+      {{ select('ownership', 'Ownership', OWNERSHIP, form, errors, help='Required for used machines') }}
+    </div>
+    <div class="row-3">
+      {{ input('insurance_valid_till', 'Insurance valid till', form, errors, type='date') }}
+    </div>
+  </section>
+
+  <section class="form-section" data-attr-section hidden>
+    <h2><span>3</span> <em data-cat-name>Category</em> specifications</h2>
+    <div class="row-3" data-attr-fields></div>
+  </section>
+
+  <section class="form-section" data-sell-only {% if ltype != 'sell' %}hidden{% endif %}>
+    <h2><span>4</span> Price</h2>
+    <div class="row-3">
+      {{ input('price', 'Expected price (₹)', form, errors, type='number', attrs='min=1 data-req-sell') }}
+      <div class="field check-pad">{{ check('price_negotiable', 'Price is negotiable', form) }}</div>
+    </div>
+  </section>
+
+  <section class="form-section" data-rent-only {% if ltype != 'rent' %}hidden{% endif %}>
+    <h2><span>4</span> Rental terms</h2>
+    <div class="row-3">
+      {{ input('rent_rate', 'Rental rate (₹)', form, errors, type='number', attrs='min=1 data-req-rent') }}
+      {{ select('rent_period', 'Per', RENT_PERIODS, form, errors, attrs='data-req-rent') }}
+      {{ input('min_rent_duration', 'Minimum duration (periods)', form, errors, type='number', attrs='min=1 data-req-rent') }}
+    </div>
+    <div class="row-3">
+      {{ input('available_from', 'Available from', form, errors, type='date', attrs='data-req-rent') }}
+      <div class="field check-pad">{{ check('operator_included', 'Operator included', form) }}</div>
+      <div class="field check-pad">{{ check('fuel_included', 'Fuel included', form) }}</div>
+    </div>
+  </section>
+
+  <section class="form-section">
+    <h2><span>5</span> Location</h2>
+    <div class="row-3">
+      {{ select('state', 'State', INDIAN_STATES, form, errors, required=True) }}
+      {{ input('city', 'City / town', form, errors, required=True) }}
+      {{ input('pincode', 'Pincode', form, errors, required=True, attrs='pattern="[0-9]{6}" maxlength=6') }}
+    </div>
+  </section>
+
+  <section class="form-section">
+    <h2><span>6</span> Description & photos</h2>
+    {{ textarea('description', 'Description', form, errors, required=True, rows=6, placeholder='Service history, tyre condition, body / attachment details, documents available, reason for selling…', help='At least 30 characters.', attrs='minlength=30') }}
+    {% if product and product.images %}
+      <div class="field"><label>Current photos <small class="muted">(tick to remove)</small></label>
+        <div class="img-edit">
+          {% for img in product.images %}
+            <label><img src="{{ url_for('static', filename='uploads/' ~ img.filename) }}" alt=""><span><input type="checkbox" name="remove_image" value="{{ img.id }}"> Remove</span></label>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+    <div class="field{% if errors.get('images') %} has-error{% endif %}">
+      {{ label('images', 'Add photos', not (product and product.images)) }}
+      <input id="f-images" type="file" name="images" accept=".jpg,.jpeg,.png,.webp" multiple data-image-input>
+      <small class="help">JPG, PNG or WEBP. Up to 8 photos — front, side, cabin, engine and attachments.</small>
+      <div class="img-preview" data-image-preview></div>
+      {{ err('images', errors) }}
+    </div>
+  </section>
+
+  <section class="form-section">
+    <h2><span>7</span> Contact details</h2>
+    <div class="row-3">
+      {{ input('contact_name', 'Contact name', form, errors, required=True) }}
+      {{ input('contact_phone', 'Mobile number', form, errors, type='tel', required=True, attrs='pattern="[0-9+ ]{10,14}"') }}
+      {{ input('contact_email', 'Email', form, errors, type='email') }}
+    </div>
+  </section>
+</div>
